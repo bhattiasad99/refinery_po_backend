@@ -1,25 +1,28 @@
-﻿# ---- dev stage ----
+# ---- dev stage ----
 FROM node:22-alpine AS dev
 WORKDIR /app
 
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 
-COPY tsconfig.json ./
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
 COPY src ./src
+COPY test ./test
 
 ENV NODE_ENV=development
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "start:dev"]
 
 # ---- build stage ----
 FROM node:22-alpine AS build
 WORKDIR /app
 
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 
-COPY tsconfig.json ./
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
 COPY src ./src
 RUN npm run build
 
@@ -29,11 +32,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY package.json ./
+COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
-
+CMD ["npm", "run", "start:prod"]

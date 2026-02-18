@@ -1,159 +1,195 @@
-# Refinery PO Backend - Simple Setup Guide
+# Refinery PO Backend
 
-This repository uses a microservice setup:
+This repo has 4 apps:
 
-- `api-gateway` (entrypoint)
-- `event-bus` (event router)
-- Registered business services (for example: `catalog`, `purchase-orders`)
+- `api-gateway`
+- `event-bus`
+- `catalog`
+- `purchase-orders`
 
-`api-gateway` and `event-bus` are infrastructure services.  
-Business services publish events to `event-bus`.
+## Env Strategy (Only 2 Files)
 
-## 1) What You Need Installed
+You now manage env from root using only:
 
-- Docker Desktop
-- Node.js 22+
-- npm
+- `.env.local` (for local Docker)
+- `.env.production` (reference for production/Render values)
 
-## 2) First-Time Local Setup (PowerShell)
+Prefix rules:
 
-Run these commands in project root:
+- `GLOBAL_*` -> shared values for all apps
+- `<APP>_*` -> app-specific values (`API_GATEWAY_*`, `EVENT_BUS_*`, `CATALOG_*`, `PURCHASE_ORDERS_*`)
+- `SERVICE_*` -> URL routing values used by `api-gateway` (and later by `event-bus`)
+
+Example files:
+
+- `.env.local.example`
+- `.env.production`
+
+## Local Run (Exact Order)
+
+1. Launch Docker Desktop first.  
+Wait until Docker Desktop shows it is running.
+
+2. Install dependencies once:
 
 ```powershell
 npm install
-npm run sync:local-stack
-docker compose up --build
 ```
 
-What this does:
-
-- installs root dependencies
-- generates `services.local.json` and `docker-compose.yml`
-- builds images and starts all services
-
-## 3) Normal Local Start/Stop
-
-Start:
+3. Prepare env:
 
 ```powershell
-docker compose up
+Copy-Item .env.local.example .env.local
+```
+
+Then update values in `.env.local` (especially DB URLs).
+
+4. Regenerate local stack files:
+
+```powershell
+npm run sync:local-stack
+```
+
+5. Start all services (build + run):
+
+```powershell
+docker compose --env-file .env.local up --build
+```
+
+6. Stop all services:
+
+```powershell
+docker compose --env-file .env.local down
+```
+
+7. Start again without rebuild:
+
+```powershell
+docker compose --env-file .env.local up
+```
+
+## Prod Compose (Optional Local Test)
+
+`docker-compose.prod.yml` is wired to `.env.production`.
+
+Build + run:
+
+```powershell
+docker compose -f docker-compose.prod.yml --env-file .env.production up --build
+```
+
+Run without rebuild:
+
+```powershell
+docker compose -f docker-compose.prod.yml --env-file .env.production up
 ```
 
 Stop:
 
 ```powershell
-docker compose down
+docker compose -f docker-compose.prod.yml --env-file .env.production down
 ```
 
-Rebuild (after Dockerfile/dependency changes):
+## Render (Simple, Per App)
+
+Deploy each app as a separate Render service:
+
+1. `api-gateway`
+2. `event-bus`
+3. `catalog`
+4. `purchase-orders`
+
+Set env vars manually in each Render project.
+
+### `api-gateway` Render env
+
+- `PORT`
+- `INTERNAL_SERVICE_KEY` (same shared secret as other apps)
+- `SERVICE_CATALOG_URL`
+- `SERVICE_PURCHASE_ORDERS_URL`
+
+### `event-bus` Render env
+
+- `PORT`
+- `DATABASE_URL`
+- `INTERNAL_SERVICE_KEY`
+- `SERVICE_CATALOG_URL`
+- `SERVICE_PURCHASE_ORDERS_URL`
+
+### `catalog` Render env
+
+- `PORT`
+- `DATABASE_URL`
+- `INTERNAL_SERVICE_KEY`
+- `EVENT_BUS_URL`
+
+### `purchase-orders` Render env
+
+- `PORT`
+- `DATABASE_URL`
+- `INTERNAL_SERVICE_KEY`
+- `EVENT_BUS_URL`
+
+## Why `services.local.json` Is No Longer Needed On Render
+
+Gateway now supports direct env routing:
+
+- `SERVICE_CATALOG_URL=...`
+- `SERVICE_PURCHASE_ORDERS_URL=...`
+
+So Render can work fully from env vars without a JSON file.
+
+`services.local.json` remains only for local convenience/fallback.
+
+## Add New Service
+
+1. Stop local containers first:
 
 ```powershell
-docker compose up --build
+docker compose --env-file .env.local down
 ```
 
-## 4) Local Service Discovery Files
-
-- `services.local.json`: list of all services and registered services
-- `docker-compose.yml`: local deployment file for all services
-
-Both are auto-generated from `package.json` workspaces + each service `.env` `PORT`.
-
-If you ever edit ports manually, run:
-
-```powershell
-npm run sync:local-stack
-```
-
-## 5) Add a New Service (Your Main Workflow)
-
-1. Stop containers:
-
-```powershell
-docker compose down
-```
-
-2. Create a service:
+2. Create service:
 
 ```powershell
 npm run new:service
 ```
 
-3. Start again:
+3. Add new service vars in both:
+
+- `.env.local`
+- `.env.production`
+
+Use your service prefix, for example `INVENTORY_PORT`, `INVENTORY_DATABASE_URL`, and `SERVICE_INVENTORY_URL`.
+
+4. Regenerate stack files:
 
 ```powershell
-docker compose up --build
+npm run sync:local-stack
 ```
 
-`npm run new:service` now auto-updates:
+5. Start again:
 
-- root workspace list
-- `services.local.json`
-- `docker-compose.yml`
+```powershell
+docker compose --env-file .env.local up --build
+```
 
-## 6) Required `.env` Values Per Service
+## Delete Service
 
-Every service:
+Normal business service delete:
 
-- `PORT=...`
-- `DATABASE_URL=...` (Neon DB URL)
+```powershell
+npm run del:service -- <service-name>
+```
 
-Business services also use:
+Infra service delete (unsafe):
 
-- `EVENT_BUS_URL=...`
+```powershell
+npm run del:service-unsafe -- <service-name>
+```
 
-Notes:
+After delete, run local again:
 
-- Local docker compose sets internal URLs automatically.
-- Keep using Neon URLs (no local Postgres container needed).
-
-## 7) Render Deployment (One Service Per Render Project)
-
-Create separate Render services for:
-
-- `api-gateway`
-- `event-bus`
-- every registered business service
-
-In each Render project, set environment variables in Render dashboard.
-
-Simple rule:
-
-- Business service -> set `EVENT_BUS_URL` to your live event-bus Render URL.
-- Gateway/Event-bus -> set service URL variables you need (from your private table).
-- Every service -> set its own `DATABASE_URL` (its own Neon project URL) and `PORT`.
-
-## 8) Your Private Table (Recommended)
-
-Keep one private sheet/document with:
-
-- Service Name
-- Local Port
-- Render URL
-- Neon DB URL
-
-Use this table when filling Render env vars.
-
-## 9) From Current Stage to Target Stage (Step by Step)
-
-1. Fill real `DATABASE_URL` in all service `.env` files.
-2. Run `npm run sync:local-stack`.
-3. Run `docker compose up --build` and confirm all services start.
-4. Add 1 new test service using `npm run new:service`.
-5. Run `docker compose up --build` again and confirm new service is included automatically.
-6. Create Render projects, one per service.
-7. Copy values from your private table into Render env vars.
-8. Deploy each service.
-9. Verify:
-   - gateway can reach target services
-   - business services can reach event-bus
-   - each service can connect to its own Neon DB
-
-## 10) Optional Mac/Linux Commands
-
-Same commands, just in terminal:
-
-```bash
-npm install
-npm run sync:local-stack
-docker compose up --build
+```powershell
+docker compose --env-file .env.local up --build
 ```

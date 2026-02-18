@@ -1,6 +1,12 @@
 {
   "services": [
     {
+      "name": "api-gateway",
+      "type": "infra",
+      "port": 8000,
+      "localUrl": "http://api-gateway:8000"
+    },
+    {
       "name": "catalog",
       "type": "registered",
       "port": 8002,
@@ -11,12 +17,6 @@
       "type": "registered",
       "port": 8003,
       "localUrl": "http://purchase-orders:8003"
-    },
-    {
-      "name": "api-gateway",
-      "type": "infra",
-      "port": 8000,
-      "localUrl": "http://api-gateway:8000"
     },
     {
       "name": "event-bus",
