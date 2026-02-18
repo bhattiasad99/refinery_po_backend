@@ -1,0 +1,1152 @@
+[
+  {
+    "id": "GST-0001",
+    "name": "Spiral Wound Gasket 2 in Class 150 RF, 316 SS/Graphite",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SWG-FLEX-2IN-150",
+    "description": "Spiral Wound Gasket 2 in Class 150 RF, 316 SS/Graphite. Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 5,
+    "priceUsd": 95,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "nominalSize": "2 in",
+      "pressureClass": "ASME 150",
+      "face": "RF",
+      "windingMaterial": "316 SS",
+      "fillerMaterial": "Graphite",
+      "innerRing": "316 SS",
+      "outerRing": "Carbon Steel"
+    }
+  },
+  {
+    "id": "GST-0002",
+    "name": "Spiral Wound Gasket 4 in Class 300 RF, 316 SS/Graphite",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SWG-FLEX-4IN-300",
+    "description": "Spiral Wound Gasket 4 in Class 300 RF, 316 SS/Graphite. Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 3,
+    "priceUsd": 28,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "nominalSize": "4 in",
+      "pressureClass": "ASME 300",
+      "face": "RF",
+      "windingMaterial": "316 SS",
+      "fillerMaterial": "Graphite",
+      "innerRing": "316 SS",
+      "outerRing": "Carbon Steel"
+    }
+  },
+  {
+    "id": "GST-0003",
+    "name": "Spiral Wound Gasket 6 in Class 600 RF, 316 SS/Graphite",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SWG-FLEX-6IN-600",
+    "description": "Spiral Wound Gasket 6 in Class 600 RF, 316 SS/Graphite. Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 14,
+    "priceUsd": 95,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "nominalSize": "6 in",
+      "pressureClass": "ASME 600",
+      "face": "RF",
+      "windingMaterial": "316 SS",
+      "fillerMaterial": "Graphite",
+      "innerRing": "316 SS",
+      "outerRing": "Carbon Steel"
+    }
+  },
+  {
+    "id": "GST-0004",
+    "name": "Spiral Wound Gasket 8 in Class 900 RF, 316 SS/Graphite",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SWG-FLEX-8IN-900",
+    "description": "Spiral Wound Gasket 8 in Class 900 RF, 316 SS/Graphite. Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 3,
+    "priceUsd": 62,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "nominalSize": "8 in",
+      "pressureClass": "ASME 900",
+      "face": "RF",
+      "windingMaterial": "316 SS",
+      "fillerMaterial": "Graphite",
+      "innerRing": "316 SS",
+      "outerRing": "Carbon Steel"
+    }
+  },
+  {
+    "id": "GST-0005",
+    "name": "RTJ Gasket R23 Soft Iron (Oval)",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "RTJ-FLEX-R23-SOFTIR",
+    "description": "RTJ Gasket R23 Soft Iron (Oval). Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 21,
+    "priceUsd": 140,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "ringNumber": "R23",
+      "profile": "Oval",
+      "material": "Soft Iron",
+      "pressureClass": "ASME 600"
+    }
+  },
+  {
+    "id": "GST-0006",
+    "name": "RTJ Gasket R24 316 SS (Octagonal)",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "RTJ-FLEX-R24-316SS",
+    "description": "RTJ Gasket R24 316 SS (Octagonal). Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 7,
+    "priceUsd": 95,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "ringNumber": "R24",
+      "profile": "Octagonal",
+      "material": "316 SS",
+      "pressureClass": "ASME 900"
+    }
+  },
+  {
+    "id": "GST-0007",
+    "name": "RTJ Gasket R35 Soft Iron (Octagonal)",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "RTJ-FLEX-R35-SOFTIR",
+    "description": "RTJ Gasket R35 Soft Iron (Octagonal). Approved supplier: Flexitallic. Standard: ASME B16.20.",
+    "leadTimeDays": 7,
+    "priceUsd": 140,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASME B16.20",
+      "ringNumber": "R35",
+      "profile": "Octagonal",
+      "material": "Soft Iron",
+      "pressureClass": "ASME 1500"
+    }
+  },
+  {
+    "id": "GST-0008",
+    "name": "PTFE Sheet Gasket Material, 1/16 in Thickness (60x60 in)",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SHT-FLEX-1_16in",
+    "description": "PTFE Sheet Gasket Material, 1/16 in Thickness (60x60 in). Approved supplier: Flexitallic. Standard: ASTM F104.",
+    "leadTimeDays": 3,
+    "priceUsd": 18,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASTM F104",
+      "thickness": "1/16 in",
+      "sheetSize": "60x60 in",
+      "material": "PTFE",
+      "maxTemperature": "200C"
+    }
+  },
+  {
+    "id": "GST-0009",
+    "name": "CNAF (NBR Binder) Sheet Gasket Material, 1/8 in Thickness (60x60 in)",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "SHT-FLEX-1_8in",
+    "description": "CNAF (NBR Binder) Sheet Gasket Material, 1/8 in Thickness (60x60 in). Approved supplier: Flexitallic. Standard: ASTM F104.",
+    "leadTimeDays": 2,
+    "priceUsd": 38,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "ASTM F104",
+      "thickness": "1/8 in",
+      "sheetSize": "60x60 in",
+      "material": "CNAF (NBR Binder)",
+      "maxTemperature": "260C"
+    }
+  },
+  {
+    "id": "GST-0010",
+    "name": "Kammprofile Gasket 10 in Class 300 RF, 316 SS Core / Graphite Facing",
+    "category": "Gasket",
+    "supplier": "Flexitallic",
+    "manufacturer": "Flexitallic",
+    "model": "KAM-FLEX-10IN-300",
+    "description": "Kammprofile Gasket 10 in Class 300 RF, 316 SS Core / Graphite Facing. Approved supplier: Flexitallic. Standard: EN 1514-6.",
+    "leadTimeDays": 10,
+    "priceUsd": 260,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flexitallic",
+      "standard": "EN 1514-6",
+      "nominalSize": "10 in",
+      "pressureClass": "ASME 300",
+      "face": "RF",
+      "coreMaterial": "316 SS Core",
+      "facingMaterial": "Graphite Facing"
+    }
+  },
+  {
+    "id": "VLV-0101",
+    "name": "Ball Valve 2 in Class 150",
+    "category": "Valve",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-BV-2IN-150",
+    "description": "Ball Valve 2 in Class 150. Approved supplier: Flowserve. Designed to API 608 / ASME B16.34.",
+    "leadTimeDays": 10,
+    "priceUsd": 2359,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 608; ASME B16.34",
+      "nominalSize": "2 in",
+      "pressureClass": "ASME 150",
+      "bodyMaterial": "ASTM A351 CF8M (316)",
+      "endConnection": "RF Flanged",
+      "trimOrSeat": "Full Port, PTFE seats",
+      "nace": "N/A",
+      "fireSafe": "API 607"
+    },
+    "compatibleWith": [
+      "GST-0009",
+      "GST-0002"
+    ]
+  },
+  {
+    "id": "VLV-0102",
+    "name": "Ball Valve 4 in Class 300",
+    "category": "Valve",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-BV-4IN-300",
+    "description": "Ball Valve 4 in Class 300. Approved supplier: Flowserve. Designed to API 608 / ASME B16.34.",
+    "leadTimeDays": 28,
+    "priceUsd": 1019,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 608; ASME B16.34",
+      "nominalSize": "4 in",
+      "pressureClass": "ASME 300",
+      "bodyMaterial": "ASTM A216 WCB",
+      "endConnection": "RF Flanged",
+      "trimOrSeat": "Full Port, RPTFE seats",
+      "nace": "N/A",
+      "fireSafe": "API 607"
+    },
+    "compatibleWith": [
+      "GST-0006",
+      "GST-0001"
+    ]
+  },
+  {
+    "id": "VLV-0103",
+    "name": "Gate Valve 6 in Class 300",
+    "category": "Valve",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-GV-6IN-300",
+    "description": "Gate Valve 6 in Class 300. Approved supplier: Flowserve. Designed to API 600 / ASME B16.34.",
+    "leadTimeDays": 35,
+    "priceUsd": 3202,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 600; ASME B16.34",
+      "nominalSize": "6 in",
+      "pressureClass": "ASME 300",
+      "bodyMaterial": "ASTM A216 WCB",
+      "endConnection": "RF Flanged",
+      "trimOrSeat": "13Cr trim",
+      "nace": "MR0175 compliant",
+      "fireSafe": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0002",
+      "GST-0004"
+    ]
+  },
+  {
+    "id": "VLV-0104",
+    "name": "Check Valve 6 in Class 600",
+    "category": "Valve",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-CV-6IN-600",
+    "description": "Check Valve 6 in Class 600. Approved supplier: Flowserve. Designed to API 594 / ASME B16.34.",
+    "leadTimeDays": 35,
+    "priceUsd": 2406,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 594; ASME B16.34",
+      "nominalSize": "6 in",
+      "pressureClass": "ASME 600",
+      "bodyMaterial": "ASTM A351 CF8M (316)",
+      "endConnection": "RF Flanged",
+      "trimOrSeat": "Dual-plate",
+      "nace": "N/A",
+      "fireSafe": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0010",
+      "GST-0007"
+    ]
+  },
+  {
+    "id": "VLV-0105",
+    "name": "Globe Valve 2 in Class 300",
+    "category": "Valve",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-GLV-2IN-300",
+    "description": "Globe Valve 2 in Class 300. Approved supplier: Flowserve. Designed to API 602 / ASME B16.34.",
+    "leadTimeDays": 10,
+    "priceUsd": 2330,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 602; ASME B16.34",
+      "nominalSize": "2 in",
+      "pressureClass": "ASME 300",
+      "bodyMaterial": "ASTM A105",
+      "endConnection": "RF Flanged",
+      "trimOrSeat": "13Cr trim",
+      "nace": "MR0175 compliant",
+      "fireSafe": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0003",
+      "GST-0005"
+    ]
+  },
+  {
+    "id": "PMP-0201",
+    "name": "ANSI Process Pump 6x4-13",
+    "category": "Pump",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-3196-OH1-6X4-13",
+    "description": "ANSI Process Pump 6x4-13. Approved supplier: Flowserve. Complies with ANSI B73.1.",
+    "leadTimeDays": 75,
+    "priceUsd": 15797,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "ANSI B73.1",
+      "hydraulicSize": "6x4-13",
+      "configuration": "OH1",
+      "casingMaterial": "Carbon Steel",
+      "ratedFlow": "400 gpm",
+      "ratedHead": "180 ft",
+      "sealPlan": "API Plan 11",
+      "driver": "Explosion-proof motor"
+    },
+    "compatibleWith": [
+      "GST-0006",
+      "GST-0010",
+      "VLV-0104"
+    ]
+  },
+  {
+    "id": "PMP-0202",
+    "name": "ANSI Process Pump 3x2-10",
+    "category": "Pump",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-3196-OH1-3X2-10",
+    "description": "ANSI Process Pump 3x2-10. Approved supplier: Flowserve. Complies with ANSI B73.1.",
+    "leadTimeDays": 45,
+    "priceUsd": 24365,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "ANSI B73.1",
+      "hydraulicSize": "3x2-10",
+      "configuration": "OH1",
+      "casingMaterial": "316 Stainless Steel",
+      "ratedFlow": "150 gpm",
+      "ratedHead": "220 ft",
+      "sealPlan": "API Plan 11",
+      "driver": "Explosion-proof motor"
+    },
+    "compatibleWith": [
+      "GST-0002",
+      "GST-0010",
+      "VLV-0104"
+    ]
+  },
+  {
+    "id": "PMP-0203",
+    "name": "API 610 OH2 Pump 4x3-13",
+    "category": "Pump",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-DMX-OH2-4X3-13",
+    "description": "API 610 OH2 Pump 4x3-13. Approved supplier: Flowserve. Complies with API 610.",
+    "leadTimeDays": 45,
+    "priceUsd": 17198,
+    "inStock": true,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 610",
+      "hydraulicSize": "4x3-13",
+      "configuration": "OH2",
+      "casingMaterial": "Carbon Steel",
+      "ratedFlow": "300 gpm",
+      "ratedHead": "260 ft",
+      "sealPlan": "API Plan 53A",
+      "driver": "TEFC motor"
+    },
+    "compatibleWith": [
+      "GST-0008",
+      "GST-0010",
+      "VLV-0104"
+    ]
+  },
+  {
+    "id": "PMP-0204",
+    "name": "API 610 BB2 Pump BB2-10",
+    "category": "Pump",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-HPX-BB2-BB2-10",
+    "description": "API 610 BB2 Pump BB2-10. Approved supplier: Flowserve. Complies with API 610.",
+    "leadTimeDays": 21,
+    "priceUsd": 27956,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "API 610",
+      "hydraulicSize": "BB2-10",
+      "configuration": "BB2",
+      "casingMaterial": "Carbon Steel",
+      "ratedFlow": "650 gpm",
+      "ratedHead": "500 ft",
+      "sealPlan": "API Plan 52",
+      "driver": "Explosion-proof motor"
+    },
+    "compatibleWith": [
+      "GST-0005",
+      "GST-0002",
+      "VLV-0102"
+    ]
+  },
+  {
+    "id": "PMP-0205",
+    "name": "Mag Drive Pump 2x1-6",
+    "category": "Pump",
+    "supplier": "Flowserve",
+    "manufacturer": "Flowserve",
+    "model": "FLS-Sealmatic-Sealless-2X1-6",
+    "description": "Mag Drive Pump 2x1-6. Approved supplier: Flowserve. Complies with ANSI B73.3.",
+    "leadTimeDays": 45,
+    "priceUsd": 33072,
+    "inStock": false,
+    "specs": {
+      "supplier": "Flowserve",
+      "standard": "ANSI B73.3",
+      "hydraulicSize": "2x1-6",
+      "configuration": "Sealless",
+      "casingMaterial": "316 Stainless Steel",
+      "ratedFlow": "70 gpm",
+      "ratedHead": "120 ft",
+      "sealPlan": "Sealless",
+      "driver": "TEFC motor"
+    },
+    "compatibleWith": [
+      "GST-0002",
+      "GST-0006",
+      "VLV-0103"
+    ]
+  },
+  {
+    "id": "INS-0401",
+    "name": "Pressure Transmitter (0-300 psi)",
+    "category": "Instrumentation",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson",
+    "model": "Rosemount 3051",
+    "description": "Pressure Transmitter 0-300 psi. Approved supplier: Emerson. Suitable for refinery measurement and control.",
+    "leadTimeDays": 7,
+    "priceUsd": 9800,
+    "inStock": true,
+    "specs": {
+      "supplier": "Emerson",
+      "measurementType": "Pressure Transmitter",
+      "range": "0-300 psi",
+      "communication": "4-20 mA + HART",
+      "accuracy": "0.075%",
+      "hazardousArea": "FM/CSA",
+      "processConnection": "1/2in NPT"
+    }
+  },
+  {
+    "id": "INS-0402",
+    "name": "Differential Pressure Transmitter (0-100 inH2O)",
+    "category": "Instrumentation",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson",
+    "model": "Rosemount 3051DP",
+    "description": "Differential Pressure Transmitter 0-100 inH2O. Approved supplier: Emerson. Suitable for refinery measurement and control.",
+    "leadTimeDays": 21,
+    "priceUsd": 8285,
+    "inStock": true,
+    "specs": {
+      "supplier": "Emerson",
+      "measurementType": "Differential Pressure Transmitter",
+      "range": "0-100 inH2O",
+      "communication": "4-20 mA + HART",
+      "accuracy": "0.075%",
+      "hazardousArea": "ATEX/IECEx",
+      "processConnection": "1/4in NPT"
+    }
+  },
+  {
+    "id": "INS-0403",
+    "name": "Radar Level Transmitter (0-20 m)",
+    "category": "Instrumentation",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson",
+    "model": "Rosemount 5408",
+    "description": "Radar Level Transmitter 0-20 m. Approved supplier: Emerson. Suitable for refinery measurement and control.",
+    "leadTimeDays": 14,
+    "priceUsd": 12881,
+    "inStock": true,
+    "specs": {
+      "supplier": "Emerson",
+      "measurementType": "Radar Level Transmitter",
+      "range": "0-20 m",
+      "communication": "4-20 mA + HART",
+      "accuracy": "\u00b13 mm",
+      "hazardousArea": "FM/CSA",
+      "processConnection": "1/4in NPT"
+    }
+  },
+  {
+    "id": "INS-0404",
+    "name": "Temperature Transmitter (-50 to 250C)",
+    "category": "Instrumentation",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson",
+    "model": "Rosemount 644",
+    "description": "Temperature Transmitter -50 to 250C. Approved supplier: Emerson. Suitable for refinery measurement and control.",
+    "leadTimeDays": 7,
+    "priceUsd": 15311,
+    "inStock": false,
+    "specs": {
+      "supplier": "Emerson",
+      "measurementType": "Temperature Transmitter",
+      "range": "-50 to 250C",
+      "communication": "4-20 mA + HART",
+      "accuracy": "0.1%",
+      "hazardousArea": "FM/CSA",
+      "processConnection": "1/2in NPT"
+    }
+  },
+  {
+    "id": "INS-0405",
+    "name": "Vibration Transmitter (0-1 in/s)",
+    "category": "Instrumentation",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson",
+    "model": "CSI 9420",
+    "description": "Vibration Transmitter 0-1 in/s. Approved supplier: Emerson. Suitable for refinery measurement and control.",
+    "leadTimeDays": 7,
+    "priceUsd": 13483,
+    "inStock": false,
+    "specs": {
+      "supplier": "Emerson",
+      "measurementType": "Vibration Transmitter",
+      "range": "0-1 in/s",
+      "communication": "WirelessHART",
+      "accuracy": "\u00b12%",
+      "hazardousArea": "ATEX/IECEx + FM/CSA",
+      "processConnection": "1/4in NPT"
+    }
+  },
+  {
+    "id": "VLV-0301",
+    "name": "Control Valve, Globe 2 in Class 300",
+    "category": "Valve",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson Fisher",
+    "model": "Fisher EZ",
+    "description": "Control Valve, Globe 2 in Class 300. Approved supplier: Emerson (Fisher). Designed to IEC 60534.",
+    "leadTimeDays": 28,
+    "priceUsd": 7318,
+    "inStock": false,
+    "specs": {
+      "supplier": "Emerson",
+      "standard": "IEC 60534",
+      "nominalSize": "2 in",
+      "pressureClass": "ASME 300",
+      "bodyMaterial": "ASTM A216 WCB",
+      "endConnection": "RF Flanged",
+      "trim": "Cage guided, equal %",
+      "actuation": "Pneumatic diaphragm",
+      "positioner": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0008",
+      "GST-0003"
+    ]
+  },
+  {
+    "id": "VLV-0302",
+    "name": "Control Valve, Globe 3 in Class 300",
+    "category": "Valve",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson Fisher",
+    "model": "Fisher GX",
+    "description": "Control Valve, Globe 3 in Class 300. Approved supplier: Emerson (Fisher). Designed to IEC 60534.",
+    "leadTimeDays": 28,
+    "priceUsd": 3094,
+    "inStock": true,
+    "specs": {
+      "supplier": "Emerson",
+      "standard": "IEC 60534",
+      "nominalSize": "3 in",
+      "pressureClass": "ASME 300",
+      "bodyMaterial": "ASTM A351 CF8M (316)",
+      "endConnection": "RF Flanged",
+      "trim": "Low noise trim",
+      "actuation": "Electric actuator",
+      "positioner": "Digital positioner"
+    },
+    "compatibleWith": [
+      "GST-0009",
+      "GST-0001"
+    ]
+  },
+  {
+    "id": "VLV-0303",
+    "name": "Control Valve, Globe 4 in Class 600",
+    "category": "Valve",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson Fisher",
+    "model": "Fisher ET",
+    "description": "Control Valve, Globe 4 in Class 600. Approved supplier: Emerson (Fisher). Designed to IEC 60534.",
+    "leadTimeDays": 21,
+    "priceUsd": 7715,
+    "inStock": true,
+    "specs": {
+      "supplier": "Emerson",
+      "standard": "IEC 60534",
+      "nominalSize": "4 in",
+      "pressureClass": "ASME 600",
+      "bodyMaterial": "ASTM A217 WC6",
+      "endConnection": "RF Flanged",
+      "trim": "Anti-cavitation",
+      "actuation": "Pneumatic diaphragm",
+      "positioner": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0004",
+      "GST-0009"
+    ]
+  },
+  {
+    "id": "VLV-0304",
+    "name": "Control Valve, Globe 1 in Class 800",
+    "category": "Valve",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson Fisher",
+    "model": "Fisher EZ",
+    "description": "Control Valve, Globe 1 in Class 800. Approved supplier: Emerson (Fisher). Designed to IEC 60534.",
+    "leadTimeDays": 35,
+    "priceUsd": 8859,
+    "inStock": false,
+    "specs": {
+      "supplier": "Emerson",
+      "standard": "IEC 60534",
+      "nominalSize": "1 in",
+      "pressureClass": "ASME 800",
+      "bodyMaterial": "ASTM A182 F316",
+      "endConnection": "Socket Weld",
+      "trim": "High pressure trim",
+      "actuation": "Pneumatic diaphragm",
+      "positioner": "Digital positioner"
+    },
+    "compatibleWith": [
+      "GST-0006",
+      "GST-0003"
+    ]
+  },
+  {
+    "id": "VLV-0305",
+    "name": "Control Valve, Globe 2 in Class 150",
+    "category": "Valve",
+    "supplier": "Emerson",
+    "manufacturer": "Emerson Fisher",
+    "model": "Fisher GX",
+    "description": "Control Valve, Globe 2 in Class 150. Approved supplier: Emerson (Fisher). Designed to IEC 60534.",
+    "leadTimeDays": 35,
+    "priceUsd": 4893,
+    "inStock": false,
+    "specs": {
+      "supplier": "Emerson",
+      "standard": "IEC 60534",
+      "nominalSize": "2 in",
+      "pressureClass": "ASME 150",
+      "bodyMaterial": "ASTM A216 WCB",
+      "endConnection": "RF Flanged",
+      "trim": "General service",
+      "actuation": "Pneumatic diaphragm",
+      "positioner": "N/A"
+    },
+    "compatibleWith": [
+      "GST-0009",
+      "GST-0001"
+    ]
+  },
+  {
+    "id": "HEX-0301",
+    "name": "Shell and Tube Heat Exchanger 100 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-TEMAE-100",
+    "description": "Shell and Tube Heat Exchanger 100 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 90,
+    "priceUsd": 34489,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "TEMA E",
+      "surfaceArea": "100 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "Admiralty Brass",
+      "designPressure": "300 psi",
+      "designTemperature": "350 F"
+    }
+  },
+  {
+    "id": "HEX-0302",
+    "name": "Shell and Tube Heat Exchanger 180 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-TEMAAES-180",
+    "description": "Shell and Tube Heat Exchanger 180 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 75,
+    "priceUsd": 84053,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "TEMA AES",
+      "surfaceArea": "180 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "450 psi",
+      "designTemperature": "400 F"
+    }
+  },
+  {
+    "id": "HEX-0303",
+    "name": "Plate Heat Exchanger, Gasketed 60 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-GasketedPlate-60",
+    "description": "Plate Heat Exchanger, Gasketed 60 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 75,
+    "priceUsd": 82041,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "Gasketed Plate",
+      "surfaceArea": "60 sq ft",
+      "shellMaterial": "316L SS",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "230 psi",
+      "designTemperature": "300 F"
+    }
+  },
+  {
+    "id": "HEX-0304",
+    "name": "Plate Heat Exchanger, Semi-welded 80 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-Semi-weldedPlate-80",
+    "description": "Plate Heat Exchanger, Semi-welded 80 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 45,
+    "priceUsd": 20809,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "Semi-welded Plate",
+      "surfaceArea": "80 sq ft",
+      "shellMaterial": "316L SS",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "435 psi",
+      "designTemperature": "320 F"
+    }
+  },
+  {
+    "id": "HEX-0305",
+    "name": "Air Cooler, Fin Fan 250 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-FinFan-250",
+    "description": "Air Cooler, Fin Fan 250 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 45,
+    "priceUsd": 31237,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "Fin Fan",
+      "surfaceArea": "250 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "Aluminum fins",
+      "designPressure": "150 psi",
+      "designTemperature": "250 F"
+    }
+  },
+  {
+    "id": "HEX-0306",
+    "name": "Reboiler Exchanger, Kettle 220 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-Kettle-220",
+    "description": "Reboiler Exchanger, Kettle 220 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 45,
+    "priceUsd": 15844,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "Kettle",
+      "surfaceArea": "220 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "600 psi",
+      "designTemperature": "450 F"
+    }
+  },
+  {
+    "id": "HEX-0307",
+    "name": "Condenser Exchanger 140 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-TEMABEU-140",
+    "description": "Condenser Exchanger 140 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 90,
+    "priceUsd": 27764,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "TEMA BEU",
+      "surfaceArea": "140 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "300 psi",
+      "designTemperature": "350 F"
+    }
+  },
+  {
+    "id": "HEX-0308",
+    "name": "Oil Cooler Exchanger 90 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-Shell&Tube-90",
+    "description": "Oil Cooler Exchanger 90 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 60,
+    "priceUsd": 15287,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "Shell & Tube",
+      "surfaceArea": "90 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "CuNi",
+      "designPressure": "230 psi",
+      "designTemperature": "300 F"
+    }
+  },
+  {
+    "id": "HEX-0309",
+    "name": "Feed/Effluent Exchanger 260 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-TEMAAES-260",
+    "description": "Feed/Effluent Exchanger 260 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 75,
+    "priceUsd": 52421,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "TEMA AES",
+      "surfaceArea": "260 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "316L SS",
+      "designPressure": "450 psi",
+      "designTemperature": "420 F"
+    }
+  },
+  {
+    "id": "HEX-0310",
+    "name": "Charge Cooler Exchanger 120 sq ft",
+    "category": "Heat Exchanger",
+    "supplier": "Alfa Laval",
+    "manufacturer": "Alfa Laval",
+    "model": "AL-TEMAE-120",
+    "description": "Charge Cooler Exchanger 120 sq ft. Approved supplier: Alfa Laval. Built for refinery heat transfer duty.",
+    "leadTimeDays": 90,
+    "priceUsd": 54644,
+    "inStock": false,
+    "specs": {
+      "supplier": "Alfa Laval",
+      "designCode": "ASME VIII",
+      "temaOrType": "TEMA E",
+      "surfaceArea": "120 sq ft",
+      "shellMaterial": "Carbon Steel",
+      "tubeOrPlateMaterial": "Admiralty Brass",
+      "designPressure": "300 psi",
+      "designTemperature": "350 F"
+    }
+  },
+  {
+    "id": "TOL-0501",
+    "name": "Cordless Hammer Drill/Driver 18V XR",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DCD996",
+    "description": "Cordless Hammer Drill/Driver 18V XR. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 2,
+    "priceUsd": 129,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Drill",
+      "voltage": "18V",
+      "chuck": "1/2 in",
+      "maxTorque": "820 in-lbs",
+      "speed": "0-2000 RPM",
+      "warranty": "Limited lifetime"
+    }
+  },
+  {
+    "id": "TOL-0502",
+    "name": "Corded 1/2in VSR Drill",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWD210G",
+    "description": "Corded 1/2in VSR Drill. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 7,
+    "priceUsd": 12,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Drill",
+      "voltage": "120V",
+      "chuck": "1/2 in",
+      "current": "10A",
+      "speed": "0-1200 RPM",
+      "warranty": "3 years"
+    }
+  },
+  {
+    "id": "TOL-0503",
+    "name": "20oz Rip Claw Hammer",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT51048",
+    "description": "20oz Rip Claw Hammer. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 7,
+    "priceUsd": 129,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Hammer",
+      "headWeight": "20 oz",
+      "handle": "Fiberglass",
+      "overallLength": "13.5 in",
+      "warranty": "3 years"
+    }
+  },
+  {
+    "id": "TOL-0504",
+    "name": "16oz Ball Peen Hammer",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT51004",
+    "description": "16oz Ball Peen Hammer. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 4,
+    "priceUsd": 59,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Hammer",
+      "headWeight": "16 oz",
+      "handle": "Hickory",
+      "overallLength": "13 in",
+      "warranty": "3 years"
+    }
+  },
+  {
+    "id": "TOL-0505",
+    "name": "Screwdriver Set, Slotted/Phillips 8pc",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT65098",
+    "description": "Screwdriver Set, Slotted/Phillips 8pc. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 1,
+    "priceUsd": 79,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Screwdriver",
+      "tips": "Slotted/Phillips",
+      "count": "8",
+      "magnetic": "Yes",
+      "warranty": "Limited lifetime"
+    }
+  },
+  {
+    "id": "TOL-0506",
+    "name": "Phillips Screwdriver PH2 6in",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT65022",
+    "description": "Phillips Screwdriver PH2 6in. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 4,
+    "priceUsd": 12,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Screwdriver",
+      "tip": "PH2",
+      "shaftLength": "6 in",
+      "magnetic": "Yes",
+      "warranty": "1 year"
+    }
+  },
+  {
+    "id": "TOL-0507",
+    "name": "Slotted Screwdriver 1/4in 6in",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT65018",
+    "description": "Slotted Screwdriver 1/4in 6in. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 1,
+    "priceUsd": 22,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Screwdriver",
+      "tip": "Slotted 1/4 in",
+      "shaftLength": "6 in",
+      "magnetic": "No",
+      "warranty": "3 years"
+    }
+  },
+  {
+    "id": "TOL-0508",
+    "name": "Adjustable Wrench 10in",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT75498",
+    "description": "Adjustable Wrench 10in. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 2,
+    "priceUsd": 15,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Wrench",
+      "length": "10 in",
+      "jawCapacity": "1.25 in",
+      "finish": "Chrome",
+      "warranty": "3 years"
+    }
+  },
+  {
+    "id": "TOL-0509",
+    "name": "Needle Nose Pliers 8in",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT70276",
+    "description": "Needle Nose Pliers 8in. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 5,
+    "priceUsd": 12,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Pliers",
+      "length": "8 in",
+      "cuttingEdge": "Yes",
+      "handle": "Bi-material",
+      "warranty": "1 year"
+    }
+  },
+  {
+    "id": "TOL-0510",
+    "name": "Utility Knife Retractable",
+    "category": "Hand Tool",
+    "supplier": "DeWalt",
+    "manufacturer": "DeWalt",
+    "model": "DWHT10046",
+    "description": "Utility Knife Retractable. Approved supplier: DeWalt. Industrial maintenance tool.",
+    "leadTimeDays": 1,
+    "priceUsd": 199,
+    "inStock": true,
+    "specs": {
+      "supplier": "DeWalt",
+      "toolType": "Knife",
+      "bladeType": "Trapezoid",
+      "body": "Metal",
+      "quickChange": "Yes",
+      "warranty": "1 year"
+    }
+  }
+]
