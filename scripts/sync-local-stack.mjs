@@ -19,15 +19,6 @@ const FIXED_SERVICE_ENV = {
   },
 };
 
-const ROUTING_TARGETS = [
-  { serviceName: "catalog", envKey: "SERVICE_CATALOG_URL", defaultUrl: "http://catalog:8002" },
-  {
-    serviceName: "purchase-orders",
-    envKey: "SERVICE_PURCHASE_ORDERS_URL",
-    defaultUrl: "http://purchase-orders:8003",
-  },
-];
-
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -177,7 +168,12 @@ function getPortEnvValue(serviceName, detectedPort) {
   return String(detectedPort);
 }
 
-function makeEnvironmentLines(service) {
+function getServiceLocalUrl(allServices, serviceName, fallbackUrl) {
+  const target = allServices.find((entry) => entry.name === serviceName);
+  return target?.localUrl ?? fallbackUrl;
+}
+
+function makeEnvironmentLines(service, allServices) {
   const lines = [
     "      NODE_ENV: development",
     `      PORT: ${getPortEnvValue(service.name, service.port)}`,
@@ -189,13 +185,22 @@ function makeEnvironmentLines(service) {
   }
 
   if (service.type === "registered") {
-    lines.push("      EVENT_BUS_URL: ${SERVICE_EVENT_BUS_URL:-http://event-bus:8001}");
+    lines.push(`      EVENT_BUS_URL: ${getServiceLocalUrl(allServices, "event-bus", "http://event-bus:8001")}`);
   }
 
-  if (service.name === "api-gateway" || service.name === "event-bus") {
-    for (const target of ROUTING_TARGETS) {
-      lines.push(`      ${target.envKey}: \${${target.envKey}:-${target.defaultUrl}}`);
-    }
+  if (service.name === "api-gateway") {
+    lines.push(`      SERVICE_CATALOG_URL: ${getServiceLocalUrl(allServices, "catalog", "http://catalog:8002")}`);
+    lines.push(
+      `      SERVICE_PURCHASE_ORDERS_URL: ${getServiceLocalUrl(allServices, "purchase-orders", "http://purchase-orders:8003")}`,
+    );
+    lines.push(`      SERVICE_EVENT_BUS_URL: ${getServiceLocalUrl(allServices, "event-bus", "http://event-bus:8001")}`);
+  }
+
+  if (service.name === "event-bus") {
+    lines.push(`      SERVICE_CATALOG_URL: ${getServiceLocalUrl(allServices, "catalog", "http://catalog:8002")}`);
+    lines.push(
+      `      SERVICE_PURCHASE_ORDERS_URL: ${getServiceLocalUrl(allServices, "purchase-orders", "http://purchase-orders:8003")}`,
+    );
   }
 
   return lines;
@@ -211,8 +216,18 @@ function makeServiceComposeBlock(service, allServices) {
     "    env_file:",
     "      - ./.env.local",
     "    environment:",
-    ...makeEnvironmentLines(service),
+    ...makeEnvironmentLines(service, allServices),
     `    command: ${service.command}`,
+    "    healthcheck:",
+    "      test:",
+    "        - CMD",
+    "        - node",
+    "        - -e",
+    "        - \"fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));\"",
+    "      interval: 5s",
+    "      timeout: 3s",
+    "      retries: 20",
+    "      start_period: 10s",
   ];
 
   if (service.name === "api-gateway") {
@@ -238,7 +253,8 @@ function makeServiceComposeBlock(service, allServices) {
   if (dependsOn.length > 0) {
     lines.push("    depends_on:");
     for (const dependency of [...new Set(dependsOn)]) {
-      lines.push(`      - ${dependency}`);
+      lines.push(`      ${dependency}:`);
+      lines.push("        condition: service_healthy");
     }
   }
 
