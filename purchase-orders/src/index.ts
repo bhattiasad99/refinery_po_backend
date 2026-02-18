@@ -2,8 +2,8 @@ import "reflect-metadata";
 import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
 
-const port = Number(process.env.PORT || 3000);
-const eventBusUrl = process.env.EVENT_BUS_URL?.trim();
+const port = Number(process.env.PURCHASE_ORDERS_PORT || 3000);
+const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
 const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
 
 export const SERVICE_NAME = "purchase-orders";
@@ -17,7 +17,7 @@ function delay(ms: number): Promise<void> {
 
 async function syncWithEventBus() {
   if (!eventBusUrl) {
-    console.warn(`Service: ${SERVICE_NAME} - EVENT_BUS_URL is not set; skipping /sync call`);
+    console.warn(`Service: ${SERVICE_NAME} - SERVICE_EVENT_BUS_URL is not set; skipping /sync call`);
     return;
   }
 

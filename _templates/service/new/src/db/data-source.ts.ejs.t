@@ -8,24 +8,24 @@ import path from "node:path"
 
 dotenv.config()
 
-const databaseUrl = process.env.DATABASE_URL?.trim()
+const databaseUrl = process.env.<%= name.toUpperCase().replace(/-/g, "_") %>_DATABASE_URL?.trim()
 
 if (!databaseUrl) {
-    throw new Error("DATABASE_URL is missing in .env")
+    throw new Error("<%= name.toUpperCase().replace(/-/g, "_") %>_DATABASE_URL is missing in .env")
 }
 
 let parsedDatabaseUrl: URL
 try {
     parsedDatabaseUrl = new URL(databaseUrl)
 } catch {
-    throw new Error("DATABASE_URL is not a valid URL")
+    throw new Error("<%= name.toUpperCase().replace(/-/g, "_") %>_DATABASE_URL is not a valid URL")
 }
 
 if (
     parsedDatabaseUrl.protocol !== "postgresql:" &&
     parsedDatabaseUrl.protocol !== "postgres:"
 ) {
-    throw new Error("DATABASE_URL must start with postgres:// or postgresql://")
+    throw new Error("<%= name.toUpperCase().replace(/-/g, "_") %>_DATABASE_URL must start with postgres:// or postgresql://")
 }
 
 if (
@@ -35,7 +35,7 @@ if (
     parsedDatabaseUrl.pathname === "/DBNAME"
 ) {
     throw new Error(
-        "DATABASE_URL contains template placeholders. Replace USER, PASSWORD, HOST, and DBNAME with real PostgreSQL values."
+        "<%= name.toUpperCase().replace(/-/g, "_") %>_DATABASE_URL contains template placeholders. Replace USER, PASSWORD, HOST, and DBNAME with real PostgreSQL values."
     )
 }
 

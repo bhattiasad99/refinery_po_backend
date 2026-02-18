@@ -14,17 +14,15 @@ type ServiceConfig = {
 const SERVICES: ServiceConfig[] = [
   {
     serviceName: 'catalog',
-    url: process.env.SERVICE_CATALOG_URL?.trim() || 'http://catalog:8002',
+    url: process.env.SERVICE_CATALOG_URL?.trim() as string,
   },
   {
     serviceName: 'purchase-orders',
-    url:
-      process.env.SERVICE_PURCHASE_ORDERS_URL?.trim() ||
-      'http://purchase-orders:8003',
+    url: process.env.SERVICE_PURCHASE_ORDERS_URL?.trim() as string,
   },
   {
     serviceName: 'event-bus',
-    url: process.env.SERVICE_EVENT_BUS_URL?.trim() || 'http://event-bus:8001',
+    url: process.env.SERVICE_EVENT_BUS_URL?.trim() as string,
   },
 ];
 

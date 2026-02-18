@@ -3,7 +3,6 @@ import path from "node:path";
 
 const ROOT_DIR = process.cwd();
 const PACKAGE_JSON_PATH = path.join(ROOT_DIR, "package.json");
-const SERVICES_LOCAL_PATH = path.join(ROOT_DIR, "services.local.json");
 const DOCKER_COMPOSE_PATH = path.join(ROOT_DIR, "docker-compose.yml");
 
 const INFRA_SERVICES = new Set(["api-gateway", "event-bus"]);
@@ -19,34 +18,12 @@ const FIXED_SERVICE_ENV = {
   },
 };
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+function toEnvPrefix(serviceName) {
+  return serviceName.toUpperCase().replace(/-/g, "_");
 }
 
-function parseEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-
-  const parsed = {};
-  const contents = fs.readFileSync(filePath, "utf8");
-  for (const rawLine of contents.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const equalIndex = line.indexOf("=");
-    if (equalIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, equalIndex).trim();
-    const value = line.slice(equalIndex + 1).trim().replace(/^['"]|['"]$/g, "");
-    parsed[key] = value;
-  }
-
-  return parsed;
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 function defaultPort(serviceName) {
@@ -57,24 +34,7 @@ function defaultPort(serviceName) {
   return 3000;
 }
 
-function readServicePort(serviceName, rootLocalEnv) {
-  const knownConfig = FIXED_SERVICE_ENV[serviceName];
-  if (knownConfig?.portKey) {
-    const knownPort = Number(rootLocalEnv[knownConfig.portKey] ?? "");
-    if (!Number.isNaN(knownPort) && knownPort > 0) {
-      return knownPort;
-    }
-  }
-
-  const envPath = path.join(ROOT_DIR, serviceName, ".env");
-  if (fs.existsSync(envPath)) {
-    const envFile = fs.readFileSync(envPath, "utf8");
-    const match = envFile.match(/^PORT\s*=\s*(\d+)\s*$/m);
-    if (match) {
-      return Number(match[1]);
-    }
-  }
-
+function readServicePort(serviceName) {
   return defaultPort(serviceName);
 }
 
@@ -119,9 +79,9 @@ function resolveServiceNames(workspaces) {
   return [...names];
 }
 
-function buildServiceList(serviceNames, rootLocalEnv) {
+function buildServiceList(serviceNames) {
   return serviceNames.map((name) => {
-    const port = readServicePort(name, rootLocalEnv);
+    const port = readServicePort(name);
     const type = INFRA_SERVICES.has(name) ? "infra" : "registered";
 
     return {
@@ -134,38 +94,30 @@ function buildServiceList(serviceNames, rootLocalEnv) {
   });
 }
 
-function writeServicesLocalFile(services) {
-  const payload = {
-    services: services.map(({ name, type, port, localUrl }) => ({
-      name,
-      type,
-      port,
-      localUrl,
-    })),
-    registeredServices: services
-      .filter((service) => service.type === "registered")
-      .map(({ name, port, localUrl }) => ({ name, port, localUrl })),
-  };
-
-  fs.writeFileSync(SERVICES_LOCAL_PATH, `${JSON.stringify(payload, null, 2)}\n`);
-}
-
 function getDatabaseEnvValue(serviceName) {
   const config = FIXED_SERVICE_ENV[serviceName];
   if (config?.databaseKey) {
     return `\${${config.databaseKey}}`;
   }
 
-  return "${DATABASE_URL}";
+  return `\${${toEnvPrefix(serviceName)}_DATABASE_URL}`;
 }
 
 function getPortEnvValue(serviceName, detectedPort) {
   const config = FIXED_SERVICE_ENV[serviceName];
   if (config?.portKey) {
-    return `\${${config.portKey}:-${detectedPort}}`;
+    return `\${${config.portKey}}`;
   }
 
-  return String(detectedPort);
+  return `\${${toEnvPrefix(serviceName)}_PORT}`;
+}
+
+function getPortEnvName(serviceName) {
+  return FIXED_SERVICE_ENV[serviceName]?.portKey ?? `${toEnvPrefix(serviceName)}_PORT`;
+}
+
+function getDatabaseEnvName(serviceName) {
+  return FIXED_SERVICE_ENV[serviceName]?.databaseKey ?? `${toEnvPrefix(serviceName)}_DATABASE_URL`;
 }
 
 function getServiceLocalUrl(allServices, serviceName, fallbackUrl) {
@@ -176,16 +128,16 @@ function getServiceLocalUrl(allServices, serviceName, fallbackUrl) {
 function makeEnvironmentLines(service, allServices) {
   const lines = [
     "      NODE_ENV: development",
-    `      PORT: ${getPortEnvValue(service.name, service.port)}`,
-    "      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-refinery-local-key}",
+    `      ${getPortEnvName(service.name)}: ${getPortEnvValue(service.name, service.port)}`,
+    "      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}",
   ];
 
   if (service.name !== "api-gateway") {
-    lines.push(`      DATABASE_URL: ${getDatabaseEnvValue(service.name)}`);
+    lines.push(`      ${getDatabaseEnvName(service.name)}: ${getDatabaseEnvValue(service.name)}`);
   }
 
   if (service.type === "registered") {
-    lines.push(`      EVENT_BUS_URL: ${getServiceLocalUrl(allServices, "event-bus", "http://event-bus:8001")}`);
+    lines.push(`      SERVICE_EVENT_BUS_URL: ${getServiceLocalUrl(allServices, "event-bus", "http://event-bus:8001")}`);
   }
 
   if (service.name === "api-gateway") {
@@ -223,7 +175,7 @@ function makeServiceComposeBlock(service, allServices) {
     "        - CMD",
     "        - node",
     "        - -e",
-    "        - \"fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));\"",
+    `        - "fetch('http://127.0.0.1:' + (process.env.${getPortEnvName(service.name)} || 3000) + '/health').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));"`,
     "      interval: 5s",
     "      timeout: 3s",
     "      retries: 20",
@@ -267,7 +219,6 @@ function writeDockerCompose(services) {
 }
 
 function main() {
-  const rootLocalEnv = parseEnvFile(path.join(ROOT_DIR, ".env.local"));
   const packageJson = readJson(PACKAGE_JSON_PATH);
   const workspaces = Array.isArray(packageJson.workspaces) ? packageJson.workspaces : [];
 
@@ -276,11 +227,10 @@ function main() {
     throw new Error("No service directories found.");
   }
 
-  const services = buildServiceList(serviceNames, rootLocalEnv);
-  writeServicesLocalFile(services);
+  const services = buildServiceList(serviceNames);
   writeDockerCompose(services);
 
-  console.log("Updated services.local.json and docker-compose.yml from .env.local");
+  console.log("Updated docker-compose.yml");
 }
 
 main();

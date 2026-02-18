@@ -105,5 +105,4 @@ Delete is safe by default and refuses infra services unless unsafe flag is used.
 `npm run sync:local-stack`:
 
 - Discovers services from workspaces and root service folders (manual Nest CLI services included)
-- Regenerates `services.local.json`
 - Regenerates local `docker-compose.yml`

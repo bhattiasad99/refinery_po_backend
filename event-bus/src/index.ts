@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
 
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.EVENT_BUS_PORT || 3000);
 
 export const SERVICE_NAME = "event-bus";
 

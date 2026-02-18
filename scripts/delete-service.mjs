@@ -62,7 +62,6 @@ function findReferences(name, ownDirName) {
     "package.json",
     "package-lock.json",
     "docker-compose.yml",
-    "services.local.json",
     "README.md",
     "readme.md",
   ]);
