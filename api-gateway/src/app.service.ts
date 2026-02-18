@@ -34,6 +34,10 @@ const SERVICES: ServiceConfig[] = [
     serviceName: 'event-bus',
     url: process.env.SERVICE_EVENT_BUS_URL?.trim() as string,
   },
+  {
+    serviceName: 'departments',
+    url: process.env.SERVICE_DEPARTMENTS_URL?.trim() as string,
+  },
 ];
 
 @Injectable()

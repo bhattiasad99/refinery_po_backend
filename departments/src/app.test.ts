@@ -22,6 +22,28 @@ describe("app routes", () => {
     expect(response.status).toBe(403);
   });
 
+  it("creates a department with name and description", async () => {
+    const response = await request(app)
+      .post("/")
+      .set("x-internal-key", "test-key")
+      .send({ name: "Operations", description: "Handles plant operations" });
+
+    expect(response.status).toBe(201);
+    expect(response.body.name).toBe("Operations");
+    expect(response.body.description).toBe("Handles plant operations");
+    expect(response.body.id).toMatch(/^dep_/);
+  });
+
+  it("returns 400 when name is missing", async () => {
+    const response = await request(app)
+      .post("/")
+      .set("x-internal-key", "test-key")
+      .send({ description: "Missing name" });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "name is required" });
+  });
+
   afterAll(() => {
     process.env.INTERNAL_SERVICE_KEY = originalKey;
   });

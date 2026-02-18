@@ -4,6 +4,7 @@ import path from "node:path";
 const ROOT_DIR = process.cwd();
 const PACKAGE_JSON_PATH = path.join(ROOT_DIR, "package.json");
 const DOCKER_COMPOSE_PATH = path.join(ROOT_DIR, "docker-compose.yml");
+const ROOT_ENV_PATH = path.join(ROOT_DIR, ".env.local");
 
 const INFRA_SERVICES = new Set(["api-gateway", "event-bus"]);
 const IGNORED_ROOT_DIRS = new Set(["node_modules", "scripts", "_templates", ".git", ".vscode"]);
@@ -26,15 +27,62 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function readEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  const content = fs.readFileSync(filePath, "utf8");
+  const env = {};
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const equalIndex = line.indexOf("=");
+    if (equalIndex <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, equalIndex).trim();
+    const value = line.slice(equalIndex + 1).trim();
+    env[key] = value;
+  }
+
+  return env;
+}
+
+let cachedRootEnv = null;
+
+function getRootEnv() {
+  if (cachedRootEnv) {
+    return cachedRootEnv;
+  }
+
+  cachedRootEnv = readEnvFile(ROOT_ENV_PATH);
+  return cachedRootEnv;
+}
+
 function defaultPort(serviceName) {
   if (serviceName === "api-gateway") return 8000;
   if (serviceName === "event-bus") return 8001;
   if (serviceName === "catalog") return 8002;
   if (serviceName === "purchase-orders") return 8003;
+  if (serviceName === "departments") return 8004;
   return 3000;
 }
 
 function readServicePort(serviceName) {
+  const env = getRootEnv();
+  const portEnvName = getPortEnvName(serviceName);
+  const configuredPort = Number(env[portEnvName]);
+
+  if (Number.isFinite(configuredPort) && configuredPort > 0) {
+    return configuredPort;
+  }
+
   return defaultPort(serviceName);
 }
 
@@ -146,18 +194,25 @@ function makeEnvironmentLines(service, allServices) {
   }
 
   if (service.name === "api-gateway") {
-    lines.push(`      SERVICE_CATALOG_URL: ${getServiceLocalUrl(allServices, "catalog", "http://catalog:8002")}`);
-    lines.push(
-      `      SERVICE_PURCHASE_ORDERS_URL: ${getServiceLocalUrl(allServices, "purchase-orders", "http://purchase-orders:8003")}`,
-    );
-    lines.push(`      SERVICE_EVENT_BUS_URL: ${getServiceLocalUrl(allServices, "event-bus", "http://event-bus:8001")}`);
+    for (const dependency of allServices) {
+      if (dependency.name === "api-gateway") {
+        continue;
+      }
+
+      const envKey = `SERVICE_${toEnvPrefix(dependency.name)}_URL`;
+      lines.push(`      ${envKey}: ${dependency.localUrl}`);
+    }
   }
 
   if (service.name === "event-bus") {
-    lines.push(`      SERVICE_CATALOG_URL: ${getServiceLocalUrl(allServices, "catalog", "http://catalog:8002")}`);
-    lines.push(
-      `      SERVICE_PURCHASE_ORDERS_URL: ${getServiceLocalUrl(allServices, "purchase-orders", "http://purchase-orders:8003")}`,
-    );
+    for (const dependency of allServices) {
+      if (dependency.name === "event-bus") {
+        continue;
+      }
+
+      const envKey = `SERVICE_${toEnvPrefix(dependency.name)}_URL`;
+      lines.push(`      ${envKey}: ${dependency.localUrl}`);
+    }
   }
 
   return lines;

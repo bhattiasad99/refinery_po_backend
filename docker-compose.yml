@@ -19,6 +19,7 @@ services:
       SERVICE_CATALOG_URL: http://catalog:8002
       SERVICE_PURCHASE_ORDERS_URL: http://purchase-orders:8003
       SERVICE_EVENT_BUS_URL: http://event-bus:8001
+      SERVICE_DEPARTMENTS_URL: http://departments:8004
     command: npm run start:dev
     healthcheck:
       test:
@@ -138,8 +139,10 @@ services:
       EVENT_BUS_PORT: ${EVENT_BUS_PORT}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
       EVENT_BUS_DATABASE_URL: ${EVENT_BUS_DATABASE_URL}
+      SERVICE_API_GATEWAY_URL: http://api-gateway:8000
       SERVICE_CATALOG_URL: http://catalog:8002
       SERVICE_PURCHASE_ORDERS_URL: http://purchase-orders:8003
+      SERVICE_DEPARTMENTS_URL: http://departments:8004
     command: npm run dev
     healthcheck:
       test:
