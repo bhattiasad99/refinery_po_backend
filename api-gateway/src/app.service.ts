@@ -4,14 +4,29 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import type { Request } from 'express';
 
-type LocalService = {
-  name: string;
-  localUrl: string;
+type ServiceConfig = {
+  serviceName: string;
+  url: string;
 };
+
+const SERVICES: ServiceConfig[] = [
+  {
+    serviceName: 'catalog',
+    url: process.env.SERVICE_CATALOG_URL?.trim() || 'http://catalog:8002',
+  },
+  {
+    serviceName: 'purchase-orders',
+    url:
+      process.env.SERVICE_PURCHASE_ORDERS_URL?.trim() ||
+      'http://purchase-orders:8003',
+  },
+  {
+    serviceName: 'event-bus',
+    url: process.env.SERVICE_EVENT_BUS_URL?.trim() || 'http://event-bus:8001',
+  },
+];
 
 @Injectable()
 export class AppService {
@@ -88,47 +103,18 @@ export class AppService {
   }
 
   private findServiceUrl(serviceName: string): string {
-    const serviceUrlFromEnv = this.getServiceUrlFromEnv(serviceName);
-    if (serviceUrlFromEnv) {
-      return serviceUrlFromEnv;
-    }
-
-    const services = this.readServices();
-    const service = services.find((entry) => entry.name === serviceName);
+    const service = SERVICES.find((entry) => entry.serviceName === serviceName);
     if (!service) {
       throw new NotFoundException(
-        `Unknown service '${serviceName}'. Set ${this.toServiceEnvKey(serviceName)} or update services.local.json`,
+        `Unknown service '${serviceName}'. Update SERVICES in api-gateway/src/app.service.ts`,
       );
     }
-    if (service.name === 'api-gateway') {
+
+    if (service.serviceName === 'api-gateway') {
       throw new NotFoundException('Refusing to proxy api-gateway to itself');
     }
 
-    return service.localUrl;
-  }
-
-  private readServices(): LocalService[] {
-    const filePath =
-      process.env.LOCAL_SERVICES_FILE ??
-      path.join(process.cwd(), 'services.local.json');
-    if (!fs.existsSync(filePath)) {
-      return [];
-    }
-
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const parsed = JSON.parse(raw) as { services?: LocalService[] };
-    return Array.isArray(parsed.services) ? parsed.services : [];
-  }
-
-  private getServiceUrlFromEnv(serviceName: string): string | null {
-    const key = this.toServiceEnvKey(serviceName);
-    const value = process.env[key]?.trim();
-    return value && value.length > 0 ? value : null;
-  }
-
-  private toServiceEnvKey(serviceName: string): string {
-    const normalized = serviceName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
-    return `SERVICE_${normalized}_URL`;
+    return service.url;
   }
 
   private buildTargetUrl(

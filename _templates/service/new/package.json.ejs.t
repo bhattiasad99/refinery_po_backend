@@ -8,6 +8,7 @@ to: <%= name %>/package.json
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:prod": "node ../scripts/run-with-root-env.mjs production npm run dev",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",

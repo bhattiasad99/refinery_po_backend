@@ -29,11 +29,6 @@ if (!serviceName) {
 const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8"));
 const workspaces = Array.isArray(packageJson.workspaces) ? packageJson.workspaces : [];
 
-if (!workspaces.includes(serviceName)) {
-  console.error(`Service '${serviceName}' is not in package.json workspaces.`);
-  process.exit(1);
-}
-
 if (INFRA_SERVICES.has(serviceName) && !allowInfra) {
   console.error(
     `Refusing to delete infra service '${serviceName}'. Use del:service-unsafe for infra deletion.`,
@@ -45,6 +40,12 @@ const serviceDir = path.join(ROOT, serviceName);
 if (!fs.existsSync(serviceDir)) {
   console.error(`Service folder not found: ${serviceName}`);
   process.exit(1);
+}
+
+if (!workspaces.includes(serviceName)) {
+  console.warn(
+    `Service '${serviceName}' is not listed in package.json workspaces. Continuing with folder deletion.`,
+  );
 }
 
 function findReferences(name, ownDirName) {
@@ -111,7 +112,6 @@ fs.rmSync(serviceDir, { recursive: true, force: true });
 packageJson.workspaces = workspaces.filter((workspace) => workspace !== serviceName);
 fs.writeFileSync(PACKAGE_JSON_PATH, `${JSON.stringify(packageJson, null, 2)}\n`);
 
-execSync("npm install", { stdio: "inherit" });
 execSync("node scripts/sync-local-stack.mjs", { stdio: "inherit" });
 
 console.log(`Deleted service '${serviceName}' and synced local stack files.`);

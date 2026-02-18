@@ -10,17 +10,15 @@ services:
     environment:
       NODE_ENV: development
       PORT: ${API_GATEWAY_PORT:-8000}
-      INTERNAL_SERVICE_KEY: ${GLOBAL_INTERNAL_SERVICE_KEY:-refinery-local-key}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-refinery-local-key}
       SERVICE_CATALOG_URL: ${SERVICE_CATALOG_URL:-http://catalog:8002}
       SERVICE_PURCHASE_ORDERS_URL: ${SERVICE_PURCHASE_ORDERS_URL:-http://purchase-orders:8003}
-      LOCAL_SERVICES_FILE: /app/services.local.json
     command: npm run start:dev
     ports:
       - "${API_GATEWAY_PORT:-8000}:${API_GATEWAY_PORT:-8000}"
     volumes:
       - ./api-gateway:/app
       - /app/node_modules
-      - ./services.local.json:/app/services.local.json:ro
     depends_on:
       - catalog
       - purchase-orders
@@ -36,7 +34,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: ${CATALOG_PORT:-8002}
-      INTERNAL_SERVICE_KEY: ${GLOBAL_INTERNAL_SERVICE_KEY:-refinery-local-key}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-refinery-local-key}
       DATABASE_URL: ${CATALOG_DATABASE_URL}
       EVENT_BUS_URL: ${SERVICE_EVENT_BUS_URL:-http://event-bus:8001}
     command: npm run dev
@@ -56,7 +54,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: ${PURCHASE_ORDERS_PORT:-8003}
-      INTERNAL_SERVICE_KEY: ${GLOBAL_INTERNAL_SERVICE_KEY:-refinery-local-key}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-refinery-local-key}
       DATABASE_URL: ${PURCHASE_ORDERS_DATABASE_URL}
       EVENT_BUS_URL: ${SERVICE_EVENT_BUS_URL:-http://event-bus:8001}
     command: npm run dev
@@ -76,13 +74,11 @@ services:
     environment:
       NODE_ENV: development
       PORT: ${EVENT_BUS_PORT:-8001}
-      INTERNAL_SERVICE_KEY: ${GLOBAL_INTERNAL_SERVICE_KEY:-refinery-local-key}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-refinery-local-key}
       DATABASE_URL: ${EVENT_BUS_DATABASE_URL}
       SERVICE_CATALOG_URL: ${SERVICE_CATALOG_URL:-http://catalog:8002}
       SERVICE_PURCHASE_ORDERS_URL: ${SERVICE_PURCHASE_ORDERS_URL:-http://purchase-orders:8003}
-      LOCAL_SERVICES_FILE: /app/services.local.json
     command: npm run dev
     volumes:
       - ./event-bus:/app
       - /app/node_modules
-      - ./services.local.json:/app/services.local.json:ro

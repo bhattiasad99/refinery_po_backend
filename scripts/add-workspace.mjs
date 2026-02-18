@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
 
 const serviceName = process.argv[2];
 
@@ -24,4 +23,3 @@ if (!packageJson.workspaces.includes(serviceName)) {
 }
 
 fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
-execSync("node scripts/sync-local-stack.mjs", { stdio: "inherit" });

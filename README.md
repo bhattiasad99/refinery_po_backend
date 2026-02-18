@@ -1,195 +1,109 @@
 # Refinery PO Backend
 
-This repo has 4 apps:
+Services in this repo:
 
 - `api-gateway`
 - `event-bus`
 - `catalog`
 - `purchase-orders`
 
-## Env Strategy (Only 2 Files)
+## Environment Model
 
-You now manage env from root using only:
+Only 2 root env files are used:
 
-- `.env.local` (for local Docker)
-- `.env.production` (reference for production/Render values)
+- `.env.local` for local Docker compose
+- `.env.production` for Render environment group and isolated `dev:prod` runs
 
-Prefix rules:
+Use flat, explicit keys (no global prefixes and no generated env names):
 
-- `GLOBAL_*` -> shared values for all apps
-- `<APP>_*` -> app-specific values (`API_GATEWAY_*`, `EVENT_BUS_*`, `CATALOG_*`, `PURCHASE_ORDERS_*`)
-- `SERVICE_*` -> URL routing values used by `api-gateway` (and later by `event-bus`)
+- `INTERNAL_SERVICE_KEY`
+- `API_GATEWAY_PORT`
+- `EVENT_BUS_PORT`
+- `CATALOG_PORT`
+- `PURCHASE_ORDERS_PORT`
+- `EVENT_BUS_DATABASE_URL`
+- `CATALOG_DATABASE_URL`
+- `PURCHASE_ORDERS_DATABASE_URL`
+- `SERVICE_EVENT_BUS_URL`
+- `SERVICE_CATALOG_URL`
+- `SERVICE_PURCHASE_ORDERS_URL`
 
-Example files:
+## Local Stack
 
-- `.env.local.example`
-- `.env.production`
-
-## Local Run (Exact Order)
-
-1. Launch Docker Desktop first.  
-Wait until Docker Desktop shows it is running.
-
-2. Install dependencies once:
+1. Install dependencies:
 
 ```powershell
 npm install
 ```
 
-3. Prepare env:
+2. Set values directly in `.env.local`.
 
-```powershell
-Copy-Item .env.local.example .env.local
-```
-
-Then update values in `.env.local` (especially DB URLs).
-
-4. Regenerate local stack files:
+3. Sync generated local files:
 
 ```powershell
 npm run sync:local-stack
 ```
 
-5. Start all services (build + run):
+4. Run local stack:
 
 ```powershell
-docker compose --env-file .env.local up --build
+npm run up:build
 ```
 
-6. Stop all services:
+5. Stop local stack:
 
 ```powershell
-docker compose --env-file .env.local down
+npm run down
 ```
 
-7. Start again without rebuild:
+## Isolated Service Using Production Env
+
+From a service folder, run:
 
 ```powershell
-docker compose --env-file .env.local up
+npm run dev:prod
 ```
 
-## Prod Compose (Optional Local Test)
+That service loads values from root `.env.production`, runs on localhost, and can connect to Render service URLs configured in `.env.production`.
 
-`docker-compose.prod.yml` is wired to `.env.production`.
-
-Build + run:
-
-```powershell
-docker compose -f docker-compose.prod.yml --env-file .env.production up --build
-```
-
-Run without rebuild:
-
-```powershell
-docker compose -f docker-compose.prod.yml --env-file .env.production up
-```
-
-Stop:
-
-```powershell
-docker compose -f docker-compose.prod.yml --env-file .env.production down
-```
-
-## Render (Simple, Per App)
-
-Deploy each app as a separate Render service:
-
-1. `api-gateway`
-2. `event-bus`
-3. `catalog`
-4. `purchase-orders`
-
-Set env vars manually in each Render project.
-
-### `api-gateway` Render env
-
-- `PORT`
-- `INTERNAL_SERVICE_KEY` (same shared secret as other apps)
-- `SERVICE_CATALOG_URL`
-- `SERVICE_PURCHASE_ORDERS_URL`
-
-### `event-bus` Render env
-
-- `PORT`
-- `DATABASE_URL`
-- `INTERNAL_SERVICE_KEY`
-- `SERVICE_CATALOG_URL`
-- `SERVICE_PURCHASE_ORDERS_URL`
-
-### `catalog` Render env
-
-- `PORT`
-- `DATABASE_URL`
-- `INTERNAL_SERVICE_KEY`
-- `EVENT_BUS_URL`
-
-### `purchase-orders` Render env
-
-- `PORT`
-- `DATABASE_URL`
-- `INTERNAL_SERVICE_KEY`
-- `EVENT_BUS_URL`
-
-## Why `services.local.json` Is No Longer Needed On Render
-
-Gateway now supports direct env routing:
-
-- `SERVICE_CATALOG_URL=...`
-- `SERVICE_PURCHASE_ORDERS_URL=...`
-
-So Render can work fully from env vars without a JSON file.
-
-`services.local.json` remains only for local convenience/fallback.
-
-## Add New Service
-
-1. Stop local containers first:
-
-```powershell
-docker compose --env-file .env.local down
-```
-
-2. Create service:
+## Create Service
 
 ```powershell
 npm run new:service
 ```
 
-3. Add new service vars in both:
+This does:
 
-- `.env.local`
-- `.env.production`
+1. Generate the service from Hygen template
+2. Add it to root workspaces
+3. Run `sync:local-stack`
 
-Use your service prefix, for example `INVENTORY_PORT`, `INVENTORY_DATABASE_URL`, and `SERVICE_INVENTORY_URL`.
+Note:
 
-4. Regenerate stack files:
-
-```powershell
-npm run sync:local-stack
-```
-
-5. Start again:
-
-```powershell
-docker compose --env-file .env.local up --build
-```
+- Hygen/sync does not edit `.env.local` or `.env.production`
+- Add/remove env keys manually when services change
+- For gateway routing, update `api-gateway/src/app.service.ts` `SERVICES` list manually
 
 ## Delete Service
 
-Normal business service delete:
+Normal service delete:
 
 ```powershell
 npm run del:service -- <service-name>
 ```
 
-Infra service delete (unsafe):
+Infra delete (unsafe):
 
 ```powershell
 npm run del:service-unsafe -- <service-name>
 ```
 
-After delete, run local again:
+Delete is safe by default and refuses infra services unless unsafe flag is used.
 
-```powershell
-docker compose --env-file .env.local up --build
-```
+## Sync Behavior
+
+`npm run sync:local-stack`:
+
+- Discovers services from workspaces and root service folders (manual Nest CLI services included)
+- Regenerates `services.local.json`
+- Regenerates local `docker-compose.yml`
