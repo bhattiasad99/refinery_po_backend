@@ -37,6 +37,21 @@ app.post("/events", (req, res) => {
   });
 });
 
+app.get("/", async (_req: Request, res: Response) => {
+  try {
+    const repository = AppDataSource.getRepository(Department);
+    const departments = await repository.find({
+      order: {
+        createdAt: "DESC",
+      },
+    });
+    return res.status(200).json(departments);
+  } catch (dbError) {
+    console.error("Failed to fetch departments", dbError);
+    return res.status(500).json({ message: "Failed to fetch departments" });
+  }
+});
+
 async function emitCreateDepartmentEvent(
   department: Department,
   requestPath: string,
@@ -97,6 +112,15 @@ app.post("/", async (req: Request, res: Response) => {
 
   try {
     const repository = AppDataSource.getRepository(Department);
+    const existingDepartment = await repository
+      .createQueryBuilder("department")
+      .where("LOWER(department.name) = LOWER(:name)", { name: value.name })
+      .getOne();
+
+    if (existingDepartment) {
+      return res.status(409).json({ message: "Department name already exists" });
+    }
+
     const department = repository.create({
       name: value.name,
       description: value.description,

@@ -5,10 +5,10 @@ export type RegisteredService = {
 
 export function getRegisteredServices(): RegisteredService[] {
   return [
-    // {
-    //   name: "catalog",
-    //   url: process.env.SERVICE_CATALOG_URL as string,
-    // },
+    {
+      name: "catalog",
+      url: process.env.SERVICE_CATALOG_URL as string,
+    },
     {
       name: "api-gateway",
       url: process.env.SERVICE_API_GATEWAY_URL as string,
