@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "*.ejs.t": "plaintext",
+    "Dockerfile.ejs.t": "plaintext"
+  }
+}

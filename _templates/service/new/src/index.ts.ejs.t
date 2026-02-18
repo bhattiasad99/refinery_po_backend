@@ -1,10 +1,13 @@
+---
+to: <%= name %>/src/index.ts
+---
 import "reflect-metadata";
 import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
 
 const port = Number(process.env.PORT || 3000);
 
-export const SERVICE_NAME = "catalog";
+export const SERVICE_NAME = "<%= name %>";
 
 async function startServer() {
   await AppDataSource.initialize();

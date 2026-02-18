@@ -4,7 +4,7 @@ import { app } from "./app";
 
 const port = Number(process.env.PORT || 3000);
 
-export const SERVICE_NAME = "catalog";
+export const SERVICE_NAME = "api-gateway";
 
 async function startServer() {
   await AppDataSource.initialize();

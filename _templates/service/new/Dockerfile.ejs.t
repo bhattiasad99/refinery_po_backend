@@ -1,4 +1,7 @@
-﻿# ---- dev stage ----
+﻿---
+to: <%= name %>/Dockerfile
+---
+# ---- dev stage ----
 FROM node:22-alpine AS dev
 WORKDIR /app
 

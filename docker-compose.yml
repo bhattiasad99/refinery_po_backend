@@ -1,0 +1,83 @@
+services:
+
+  catalog:
+    build:
+      context: ./catalog
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./catalog/.env
+    environment:
+      NODE_ENV: development
+      PORT: 8002
+      EVENT_BUS_URL: http://event-bus:8001
+    command: npm run dev
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./catalog:/app
+      - /app/node_modules
+    depends_on:
+      - event-bus
+
+  purchase-orders:
+    build:
+      context: ./purchase-orders
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./purchase-orders/.env
+    environment:
+      NODE_ENV: development
+      PORT: 8003
+      EVENT_BUS_URL: http://event-bus:8001
+    command: npm run dev
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./purchase-orders:/app
+      - /app/node_modules
+    depends_on:
+      - event-bus
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./api-gateway/.env
+    environment:
+      NODE_ENV: development
+      PORT: 8000
+      LOCAL_SERVICES_FILE: /app/services.local.json
+    command: npm run dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api-gateway:/app
+      - /app/node_modules
+      - ./services.local.json:/app/services.local.json:ro
+    depends_on:
+      - catalog
+      - purchase-orders
+      - event-bus
+
+  event-bus:
+    build:
+      context: ./event-bus
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./event-bus/.env
+    environment:
+      NODE_ENV: development
+      PORT: 8001
+      LOCAL_SERVICES_FILE: /app/services.local.json
+    command: npm run dev
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./event-bus:/app
+      - /app/node_modules
+      - ./services.local.json:/app/services.local.json:ro

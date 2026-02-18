@@ -1,0 +1,32 @@
+{
+  "name": "refinery_po_backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "new:service": "hygen service new",
+    "sync:local-stack": "node scripts/sync-local-stack.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhattiasad99/refinery_po_backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bhattiasad99/refinery_po_backend/issues"
+  },
+  "homepage": "https://github.com/bhattiasad99/refinery_po_backend#readme",
+  "description": "",
+  "devDependencies": {
+    "hygen": "^6.2.11"
+  },
+  "private": true,
+  "workspaces": [
+    "catalog",
+    "purchase-orders",
+    "api-gateway",
+    "event-bus"
+  ]
+}

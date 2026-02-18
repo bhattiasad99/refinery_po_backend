@@ -1,0 +1,40 @@
+{
+  "services": [
+    {
+      "name": "catalog",
+      "type": "registered",
+      "port": 8002,
+      "localUrl": "http://catalog:8002"
+    },
+    {
+      "name": "purchase-orders",
+      "type": "registered",
+      "port": 8003,
+      "localUrl": "http://purchase-orders:8003"
+    },
+    {
+      "name": "api-gateway",
+      "type": "infra",
+      "port": 8000,
+      "localUrl": "http://api-gateway:8000"
+    },
+    {
+      "name": "event-bus",
+      "type": "infra",
+      "port": 8001,
+      "localUrl": "http://event-bus:8001"
+    }
+  ],
+  "registeredServices": [
+    {
+      "name": "catalog",
+      "port": 8002,
+      "localUrl": "http://catalog:8002"
+    },
+    {
+      "name": "purchase-orders",
+      "port": 8003,
+      "localUrl": "http://purchase-orders:8003"
+    }
+  ]
+}
