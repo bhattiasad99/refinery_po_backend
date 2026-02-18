@@ -27,3 +27,9 @@ app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.post("/events", (req, res) => {
+  return res.status(200).json({
+    accepted: true,
+    eventName: req.body?.name ?? null,
+  });
+});
