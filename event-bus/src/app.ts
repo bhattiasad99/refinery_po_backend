@@ -67,4 +67,3 @@ app.get("/events/failed", async (req, res) => {
 
   return res.json(failedDeliveries);
 });
-

@@ -9,6 +9,11 @@ services:
       - ./.env.local
     environment:
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
       API_GATEWAY_PORT: ${API_GATEWAY_PORT}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
       SERVICE_CATALOG_URL: http://catalog:8002
@@ -37,6 +42,8 @@ services:
         condition: service_healthy
       event-bus:
         condition: service_healthy
+      departments:
+        condition: service_healthy
 
   catalog:
     build:
@@ -47,6 +54,11 @@ services:
       - ./.env.local
     environment:
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
       CATALOG_PORT: ${CATALOG_PORT}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
       CATALOG_DATABASE_URL: ${CATALOG_DATABASE_URL}
@@ -62,6 +74,8 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+    ports:
+      - "${CATALOG_PORT}:${CATALOG_PORT}"
     volumes:
       - ./catalog:/app
       - /app/node_modules
@@ -78,6 +92,11 @@ services:
       - ./.env.local
     environment:
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
       PURCHASE_ORDERS_PORT: ${PURCHASE_ORDERS_PORT}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
       PURCHASE_ORDERS_DATABASE_URL: ${PURCHASE_ORDERS_DATABASE_URL}
@@ -93,6 +112,8 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+    ports:
+      - "${PURCHASE_ORDERS_PORT}:${PURCHASE_ORDERS_PORT}"
     volumes:
       - ./purchase-orders:/app
       - /app/node_modules
@@ -109,6 +130,11 @@ services:
       - ./.env.local
     environment:
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
       EVENT_BUS_PORT: ${EVENT_BUS_PORT}
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
       EVENT_BUS_DATABASE_URL: ${EVENT_BUS_DATABASE_URL}
@@ -125,6 +151,46 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+    ports:
+      - "${EVENT_BUS_PORT}:${EVENT_BUS_PORT}"
     volumes:
       - ./event-bus:/app
       - /app/node_modules
+
+  departments:
+    build:
+      context: ./departments
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./.env.local
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
+      DEPARTMENTS_PORT: ${DEPARTMENTS_PORT}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      DEPARTMENTS_DATABASE_URL: ${DEPARTMENTS_DATABASE_URL}
+      SERVICE_EVENT_BUS_URL: http://event-bus:8001
+    command: npm run dev
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:' + (process.env.DEPARTMENTS_PORT || 3000) + '/health').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    ports:
+      - "${DEPARTMENTS_PORT}:${DEPARTMENTS_PORT}"
+    volumes:
+      - ./departments:/app
+      - /app/node_modules
+    depends_on:
+      event-bus:
+        condition: service_healthy

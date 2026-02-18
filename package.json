@@ -33,6 +33,7 @@
     "api-gateway",
     "catalog",
     "purchase-orders",
-    "event-bus"
+    "event-bus",
+    "departments"
   ]
 }

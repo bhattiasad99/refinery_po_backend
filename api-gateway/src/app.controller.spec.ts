@@ -26,4 +26,25 @@ describe('AppController', () => {
       });
     });
   });
+
+  describe('events', () => {
+    it('should accept a valid event payload', () => {
+      expect(
+        appController.handleEvent({
+          id: 'evt_1',
+          name: 'purchase-order.created',
+          body: { id: 'po_1' },
+          source: 'purchase-orders',
+          url: 'http://purchase-orders:8003/purchase-orders/po_1',
+          timestamp: '2026-02-18T00:00:00.000Z',
+        }),
+      ).toEqual({
+        body: {
+          accepted: true,
+          eventName: 'purchase-order.created',
+        },
+        message: 'Event received',
+      });
+    });
+  });
 });

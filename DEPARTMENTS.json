@@ -1,0 +1,37 @@
+[
+    {
+        "id": 1,
+        "name": "Product Management",
+        "description": "Phasellus in felis. Donec semper sapien a libero. Nam dui."
+    },
+    {
+        "id": 2,
+        "name": "Engineering",
+        "description": "Curabitur at ipsum ac tellus semper interdum. Mauris ullamcorper purus sit amet nulla. Quisque arcu libero, rutrum ac, lobortis vel, dapibus at, diam."
+    },
+    {
+        "id": 3,
+        "name": "Human Resources",
+        "description": "Vestibulum ac est lacinia nisi venenatis tristique. Fusce congue, diam id ornare imperdiet, sapien urna pretium nisl, ut volutpat sapien arcu sed augue. Aliquam erat volutpat."
+    },
+    {
+        "id": 4,
+        "name": "Support",
+        "description": "Duis bibendum. Morbi non quam nec dui luctus rutrum. Nulla tellus."
+    },
+    {
+        "id": 5,
+        "name": "Marketing",
+        "description": "Praesent blandit. Nam nulla. Integer pede justo, lacinia eget, tincidunt eget, tempus vel, pede."
+    },
+    {
+        "id": 7,
+        "name": "Product Management",
+        "description": "Sed sagittis. Nam congue, risus semper porta volutpat, quam pede lobortis ligula, sit amet eleifend pede libero quis orci. Nullam molestie nibh in lectus."
+    },
+    {
+        "id": 8,
+        "name": "Supply Chain",
+        "description": "In hac habitasse platea dictumst. Etiam faucibus cursus urna. Ut tellus."
+    }
+]

@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   HttpException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,15 @@ import type { Request } from 'express';
 type ServiceConfig = {
   serviceName: string;
   url: string;
+};
+
+type GatewayIncomingEvent = {
+  id?: string;
+  name: string;
+  body: Record<string, unknown>;
+  source: string;
+  url: string;
+  timestamp?: string;
 };
 
 const SERVICES: ServiceConfig[] = [
@@ -30,6 +40,14 @@ const SERVICES: ServiceConfig[] = [
 export class AppService {
   getHealth() {
     return { status: 'ok', service: 'api-gateway' };
+  }
+
+  receiveEvent(payload: unknown): { accepted: true; eventName: string } {
+    const eventPayload = this.validateEventPayload(payload);
+    return {
+      accepted: true,
+      eventName: eventPayload.name,
+    };
   }
 
   async forward(request: Request): Promise<{
@@ -198,5 +216,54 @@ export class AppService {
     }
 
     return null;
+  }
+
+  private validateEventPayload(payload: unknown): GatewayIncomingEvent {
+    if (!payload || typeof payload !== 'object') {
+      throw new BadRequestException('event payload must be a JSON object');
+    }
+
+    const eventPayload = payload as Partial<GatewayIncomingEvent>;
+
+    if (
+      typeof eventPayload.name !== 'string' ||
+      eventPayload.name.trim().length === 0
+    ) {
+      throw new BadRequestException('name is required');
+    }
+
+    if (
+      !eventPayload.body ||
+      typeof eventPayload.body !== 'object' ||
+      Array.isArray(eventPayload.body)
+    ) {
+      throw new BadRequestException('body must be a JSON object');
+    }
+
+    if (
+      typeof eventPayload.source !== 'string' ||
+      eventPayload.source.trim().length === 0
+    ) {
+      throw new BadRequestException('source is required');
+    }
+
+    if (
+      typeof eventPayload.url !== 'string' ||
+      eventPayload.url.trim().length === 0
+    ) {
+      throw new BadRequestException('url is required');
+    }
+
+    return {
+      id: typeof eventPayload.id === 'string' ? eventPayload.id : undefined,
+      name: eventPayload.name.trim(),
+      body: eventPayload.body,
+      source: eventPayload.source.trim(),
+      url: eventPayload.url.trim(),
+      timestamp:
+        typeof eventPayload.timestamp === 'string'
+          ? eventPayload.timestamp
+          : undefined,
+    };
   }
 }

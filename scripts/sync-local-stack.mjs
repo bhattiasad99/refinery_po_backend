@@ -128,6 +128,11 @@ function getServiceLocalUrl(allServices, serviceName, fallbackUrl) {
 function makeEnvironmentLines(service, allServices) {
   const lines = [
     "      NODE_ENV: development",
+    "      CHOKIDAR_USEPOLLING: \"true\"",
+    "      CHOKIDAR_INTERVAL: \"1000\"",
+    "      WATCHPACK_POLLING: \"true\"",
+    "      TSC_WATCHFILE: UsePolling",
+    "      TSC_WATCHDIRECTORY: UsePolling",
     `      ${getPortEnvName(service.name)}: ${getPortEnvValue(service.name, service.port)}`,
     "      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}",
   ];
@@ -182,9 +187,7 @@ function makeServiceComposeBlock(service, allServices) {
     "      start_period: 10s",
   ];
 
-  if (service.name === "api-gateway") {
-    lines.push("    ports:", `      - "${getPortEnvValue(service.name, service.port)}:${getPortEnvValue(service.name, service.port)}"`);
-  }
+  lines.push("    ports:", `      - "${getPortEnvValue(service.name, service.port)}:${getPortEnvValue(service.name, service.port)}"`);
 
   lines.push("    volumes:");
   lines.push(`      - ./${service.name}:/app`);

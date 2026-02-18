@@ -4,8 +4,9 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { Observable, map } from 'rxjs';
 import { APP_NAME, APP_VERSION } from './response.constants';
+
+const { map } = require('rxjs');
 
 type SuccessPayload = {
   body?: unknown;
@@ -14,7 +15,10 @@ type SuccessPayload = {
 
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): ReturnType<CallHandler['handle']> {
     const response = context.switchToHttp().getResponse();
 
     return next.handle().pipe(

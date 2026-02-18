@@ -1,4 +1,4 @@
-import { All, Controller, Get, Req, Res } from '@nestjs/common';
+import { All, Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AppService } from './app.service';
 
@@ -11,6 +11,14 @@ export class AppController {
     return {
       body: this.appService.getHealth(),
       message: 'Gateway healthy',
+    };
+  }
+
+  @Post('events')
+  handleEvent(@Body() payload: unknown) {
+    return {
+      body: this.appService.receiveEvent(payload),
+      message: 'Event received',
     };
   }
 
