@@ -8,6 +8,10 @@ import {
   parsePurchaseOrderWritePayload,
 } from "./schemas/purchase-order.schema";
 import { publishEvent } from "./services/event-publisher.service";
+import {
+  buildCreatePurchaseOrderEventPayload,
+  buildEditPurchaseOrderEventPayload,
+} from "./services/purchase-order-event-payload.service";
 import { createPurchaseOrder, updatePurchaseOrder } from "./services/purchase-order.service";
 import { processIncomingProjectionEvent } from "./services/projection.service";
 
@@ -55,6 +59,34 @@ app.get("/", async (_req, res) => {
   }
 });
 
+app.get("/:purchaseOrderId", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const row = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+
+    if (!row) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    return res.status(200).json(row);
+  } catch (error) {
+    console.error("Failed to fetch purchase order", error);
+    return res.status(500).json({ message: "Failed to fetch purchase order" });
+  }
+});
+
 app.post("/", async (req: Request, res: Response) => {
   const parsedPayload = parsePurchaseOrderWritePayload(req.body);
   if (!parsedPayload.ok) {
@@ -63,7 +95,11 @@ app.post("/", async (req: Request, res: Response) => {
 
   try {
     const created = await createPurchaseOrder(parsedPayload.value);
-    await publishEvent("create_purchase_order", created, `/${created.id}`);
+    await publishEvent(
+      "create_purchase_order",
+      buildCreatePurchaseOrderEventPayload(created),
+      `/${created.id}`,
+    );
     return res.status(201).json(created);
   } catch (error) {
     console.error("Failed to create purchase order", error);
@@ -83,6 +119,19 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
   }
 
   try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const beforeUpdate = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+    if (!beforeUpdate) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
     const updated = await updatePurchaseOrder(parsedId.value, parsedPayload.value);
     if (!updated) {
       return res.status(404).json({ message: "Purchase order not found" });
@@ -90,11 +139,7 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
 
     await publishEvent(
       "edit_purchase_order",
-      {
-        id: updated.id,
-        changes: parsedPayload.value,
-        snapshot: updated,
-      },
+      buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
     );
 
