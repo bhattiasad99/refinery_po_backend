@@ -1,5 +1,15 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
+import { AppDataSource } from "./db/data-source";
+import { PurchaseOrder } from "./entities/purchase-order.entity";
+import { parseIncomingEvent } from "./schemas/incoming-event.schema";
+import {
+  parsePurchaseOrderId,
+  parsePurchaseOrderWritePayload,
+} from "./schemas/purchase-order.schema";
+import { publishEvent } from "./services/event-publisher.service";
+import { createPurchaseOrder, updatePurchaseOrder } from "./services/purchase-order.service";
+import { processIncomingProjectionEvent } from "./services/projection.service";
 
 export const app = express();
 
@@ -26,12 +36,89 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
-app.get("/", (_req, res) => {
-  return res.status(200).json([]);
+app.get("/", async (_req, res) => {
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const rows = await repository.find({
+      relations: ["lineItems", "milestones"],
+      order: {
+        createdAt: "DESC",
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+      take: 100,
+    });
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Failed to list purchase orders", error);
+    return res.status(500).json({ message: "Failed to list purchase orders" });
+  }
 });
-app.post("/events", (req, res) => {
-  return res.status(200).json({
-    accepted: true,
-    eventName: req.body?.name ?? null,
-  });
+
+app.post("/", async (req: Request, res: Response) => {
+  const parsedPayload = parsePurchaseOrderWritePayload(req.body);
+  if (!parsedPayload.ok) {
+    return res.status(400).json({ message: parsedPayload.message });
+  }
+
+  try {
+    const created = await createPurchaseOrder(parsedPayload.value);
+    await publishEvent("create_purchase_order", created, `/${created.id}`);
+    return res.status(201).json(created);
+  } catch (error) {
+    console.error("Failed to create purchase order", error);
+    return res.status(500).json({ message: "Failed to create purchase order" });
+  }
+});
+
+app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  const parsedPayload = parsePurchaseOrderWritePayload(req.body);
+  if (!parsedPayload.ok) {
+    return res.status(400).json({ message: parsedPayload.message });
+  }
+
+  try {
+    const updated = await updatePurchaseOrder(parsedId.value, parsedPayload.value);
+    if (!updated) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    await publishEvent(
+      "edit_purchase_order",
+      {
+        id: updated.id,
+        changes: parsedPayload.value,
+        snapshot: updated,
+      },
+      `/${updated.id}`,
+    );
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("Failed to update purchase order", error);
+    return res.status(500).json({ message: "Failed to update purchase order" });
+  }
+});
+
+app.post("/events", async (req: Request, res: Response) => {
+  const parsedEvent = parseIncomingEvent(req.body);
+  if (!parsedEvent.ok) {
+    return res.status(400).json({ message: parsedEvent.message });
+  }
+
+  try {
+    await processIncomingProjectionEvent(parsedEvent.value);
+    return res.status(200).json({
+      accepted: true,
+      eventName: parsedEvent.value.name,
+    });
+  } catch (error) {
+    console.error("Failed to process incoming event", error);
+    return res.status(500).json({ message: "Failed to process event" });
+  }
 });

@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
+import { syncProjectionsFromEventBus } from "./services/projection.service";
 
 const port = Number(process.env.PURCHASE_ORDERS_PORT || 3000);
 const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
@@ -52,6 +53,13 @@ async function syncWithEventBus() {
 
 async function startServer() {
   await AppDataSource.initialize();
+  try {
+    await syncProjectionsFromEventBus();
+    console.log(`Service: ${SERVICE_NAME} - Projection sync completed`);
+  } catch (syncError) {
+    console.warn(`Service: ${SERVICE_NAME} - Projection sync failed`, syncError);
+  }
+
   app.listen(port, () => {
     console.log(`Service: ${SERVICE_NAME} - Listening on http://localhost:${port}`);
     void syncWithEventBus();

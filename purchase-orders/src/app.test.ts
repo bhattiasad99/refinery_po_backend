@@ -1,9 +1,18 @@
 import request from "supertest";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { app } from "./app";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+let app: Awaited<typeof import("./app")>["app"];
 
 describe("app routes", () => {
   const originalKey = process.env.INTERNAL_SERVICE_KEY;
+  const originalDbUrl = process.env.PURCHASE_ORDERS_DATABASE_URL;
+
+  beforeAll(async () => {
+    process.env.PURCHASE_ORDERS_DATABASE_URL =
+      process.env.PURCHASE_ORDERS_DATABASE_URL ??
+      "postgres://test:test@localhost:5432/test_purchase_orders";
+    ({ app } = await import("./app"));
+  });
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -24,5 +33,6 @@ describe("app routes", () => {
 
   afterAll(() => {
     process.env.INTERNAL_SERVICE_KEY = originalKey;
+    process.env.PURCHASE_ORDERS_DATABASE_URL = originalDbUrl;
   });
 });

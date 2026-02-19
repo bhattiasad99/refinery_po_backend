@@ -1,6 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
-import { In } from "typeorm";
+import { In, SelectQueryBuilder } from "typeorm";
 import { Catalog } from "./entities/catalog.entity";
 import { Category } from "./entities/category.entity";
 import { Supplier } from "./entities/supplier.entity";
@@ -311,6 +311,28 @@ type CatalogSortOption =
   | "lead_time_desc"
   | "supplier_asc";
 
+type CatalogListFilters = {
+  searchInput: string | null;
+  category: string | null;
+  inStock: boolean | null;
+};
+
+type CatalogListRequest = {
+  page: number;
+  limit: number;
+  offset: number;
+  sort: CatalogSortOption | null;
+  simulatedDelayMs: number;
+  filters: CatalogListFilters;
+};
+
+type CatalogListStatsRaw = {
+  total: string | null;
+  averageLeadTime: string | null;
+  averagePrice: string | null;
+  inStockCount: string | null;
+};
+
 function asPositiveInt(value: unknown): number | null {
   if (typeof value !== "string") {
     return null;
@@ -318,6 +340,19 @@ function asPositiveInt(value: unknown): number | null {
 
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.floor(parsed);
+}
+
+function asNonNegativeInt(value: unknown): number | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
     return null;
   }
 
@@ -367,15 +402,125 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function parseCatalogListRequest(query: Request["query"]): CatalogListRequest {
+  const limit = Math.min(asPositiveInt(query.limit) ?? 50, 200);
+  const offsetFromQuery = asNonNegativeInt(query.offset);
+  const pageFromQuery = asPositiveInt(query.page);
+  const page =
+    pageFromQuery ??
+    (offsetFromQuery !== null ? Math.floor(offsetFromQuery / limit) + 1 : 1);
+  const offset = (page - 1) * limit;
+
+  return {
+    page,
+    limit,
+    offset,
+    sort: resolveSortOption(query.sort),
+    simulatedDelayMs: Math.min(asPositiveInt(query.simulateDelayMs) ?? 0, 3000),
+    filters: {
+      searchInput:
+        asNonEmptyString(query.search) ?? asNonEmptyString(query.q) ?? null,
+      category: asNonEmptyString(query.category),
+      inStock: parseBooleanQuery(query.inStock),
+    },
+  };
+}
+
+function applyCatalogFilters(
+  queryBuilder: SelectQueryBuilder<Catalog>,
+  filters: CatalogListFilters,
+): void {
+  if (filters.searchInput) {
+    const searchPattern = `%${escapeLikePattern(filters.searchInput)}%`;
+    queryBuilder.andWhere(
+      "(catalog.id ILIKE :search ESCAPE '\\' OR " +
+        "catalog.name ILIKE :search ESCAPE '\\' OR " +
+        "catalog.supplier_name ILIKE :search ESCAPE '\\' OR " +
+        "catalog.manufacturer ILIKE :search ESCAPE '\\' OR " +
+        "catalog.model ILIKE :search ESCAPE '\\')",
+      { search: searchPattern },
+    );
+  }
+
+  if (filters.category) {
+    queryBuilder.andWhere("catalog.category_name = :category", {
+      category: filters.category,
+    });
+  }
+
+  if (filters.inStock !== null) {
+    queryBuilder.andWhere("catalog.in_stock = :inStock", {
+      inStock: filters.inStock,
+    });
+  }
+}
+
+function applyCatalogSort(
+  queryBuilder: SelectQueryBuilder<Catalog>,
+  sort: CatalogSortOption | null,
+): void {
+  switch (sort) {
+    case "price_asc":
+      queryBuilder.orderBy("catalog.price_usd", "ASC");
+      break;
+    case "price_desc":
+      queryBuilder.orderBy("catalog.price_usd", "DESC");
+      break;
+    case "lead_time_asc":
+      queryBuilder.orderBy("catalog.lead_time_days", "ASC");
+      break;
+    case "lead_time_desc":
+      queryBuilder.orderBy("catalog.lead_time_days", "DESC");
+      break;
+    case "supplier_asc":
+      queryBuilder.orderBy("catalog.supplier_name", "ASC");
+      break;
+    default:
+      queryBuilder.orderBy("catalog.name", "ASC");
+      break;
+  }
+}
+
+function toFiniteNumber(value: string | null | undefined, fallback = 0): number {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeCatalogStats(raw: CatalogListStatsRaw | null | undefined): {
+  total: number;
+  averageLeadTime: number;
+  averagePrice: number;
+  inStockCount: number;
+} {
+  return {
+    total: Math.max(Math.floor(toFiniteNumber(raw?.total)), 0),
+    averageLeadTime: toFiniteNumber(raw?.averageLeadTime),
+    averagePrice: toFiniteNumber(raw?.averagePrice),
+    inStockCount: Math.max(Math.floor(toFiniteNumber(raw?.inStockCount)), 0),
+  };
+}
+
+function buildCatalogStatsQuery(
+  baseQueryBuilder: SelectQueryBuilder<Catalog>,
+): SelectQueryBuilder<Catalog> {
+  return baseQueryBuilder
+    .clone()
+    .select("COUNT(catalog.id)", "total")
+    .addSelect("AVG(catalog.lead_time_days)", "averageLeadTime")
+    .addSelect("AVG(catalog.price_usd)", "averagePrice")
+    .addSelect(
+      "COALESCE(SUM(CASE WHEN catalog.in_stock THEN 1 ELSE 0 END), 0)",
+      "inStockCount",
+    );
+}
+
 app.get("/", async (req: Request, res: Response) => {
-  const limit = Math.min(asPositiveInt(req.query.limit) ?? 50, 200);
-  const offset = Math.max(asPositiveInt(req.query.offset) ?? 0, 0);
-  const searchInput =
-    asNonEmptyString(req.query.search) ?? asNonEmptyString(req.query.q) ?? null;
-  const category = asNonEmptyString(req.query.category);
-  const inStock = parseBooleanQuery(req.query.inStock);
-  const sort = resolveSortOption(req.query.sort);
-  const simulatedDelayMs = Math.min(asPositiveInt(req.query.simulateDelayMs) ?? 0, 3000);
+  const { page, limit, offset, sort, simulatedDelayMs, filters } =
+    parseCatalogListRequest(req.query);
 
   try {
     if (simulatedDelayMs > 0) {
@@ -384,55 +529,59 @@ app.get("/", async (req: Request, res: Response) => {
 
     const { AppDataSource } = await import("./db/data-source");
     const repository = AppDataSource.getRepository(Catalog);
-    const queryBuilder = repository.createQueryBuilder("catalog");
+    const baseQueryBuilder = repository.createQueryBuilder("catalog");
+    applyCatalogFilters(baseQueryBuilder, filters);
 
-    if (searchInput) {
-      const searchPattern = `%${escapeLikePattern(searchInput)}%`;
-      queryBuilder.andWhere(
-        "(catalog.id ILIKE :search ESCAPE '\\' OR " +
-          "catalog.name ILIKE :search ESCAPE '\\' OR " +
-          "catalog.supplier_name ILIKE :search ESCAPE '\\' OR " +
-          "catalog.manufacturer ILIKE :search ESCAPE '\\' OR " +
-          "catalog.model ILIKE :search ESCAPE '\\')",
-        { search: searchPattern },
-      );
-    }
+    const statsRaw = await buildCatalogStatsQuery(baseQueryBuilder).getRawOne<CatalogListStatsRaw>();
+    const stats = normalizeCatalogStats(statsRaw);
 
-    if (category) {
-      queryBuilder.andWhere("catalog.category_name = :category", { category });
-    }
+    const rowsQueryBuilder = baseQueryBuilder.clone();
+    applyCatalogSort(rowsQueryBuilder, sort);
+    rowsQueryBuilder.take(limit).skip(offset);
 
-    if (inStock !== null) {
-      queryBuilder.andWhere("catalog.in_stock = :inStock", { inStock });
-    }
-
-    switch (sort) {
-      case "price_asc":
-        queryBuilder.orderBy("catalog.price_usd", "ASC");
-        break;
-      case "price_desc":
-        queryBuilder.orderBy("catalog.price_usd", "DESC");
-        break;
-      case "lead_time_asc":
-        queryBuilder.orderBy("catalog.lead_time_days", "ASC");
-        break;
-      case "lead_time_desc":
-        queryBuilder.orderBy("catalog.lead_time_days", "DESC");
-        break;
-      case "supplier_asc":
-        queryBuilder.orderBy("catalog.supplier_name", "ASC");
-        break;
-      default:
-        queryBuilder.orderBy("catalog.name", "ASC");
-        break;
-    }
-
-    queryBuilder.take(limit).skip(offset);
-    const rows = await queryBuilder.getMany();
-    return res.status(200).json(rows);
+    const rows = await rowsQueryBuilder.getMany();
+    return res.status(200).json({
+      data: rows,
+      total: stats.total,
+      page,
+      limit,
+      averageLeadTime: stats.averageLeadTime,
+      averagePrice: stats.averagePrice,
+      inStockCount: stats.inStockCount,
+    });
   } catch (error) {
     console.error("Failed to fetch catalog items", error);
     return res.status(500).json({ message: "Failed to fetch catalog items" });
+  }
+});
+
+app.get("/suppliers", async (_req: Request, res: Response) => {
+  try {
+    const { AppDataSource } = await import("./db/data-source");
+    const repository = AppDataSource.getRepository(Catalog);
+    const rows = await repository.find({ order: { supplierName: "ASC", name: "ASC" } });
+
+    const suppliersMap = new Map<string, Catalog[]>();
+    for (const item of rows) {
+      const existingItems = suppliersMap.get(item.supplierName);
+      if (existingItems) {
+        existingItems.push(item);
+      } else {
+        suppliersMap.set(item.supplierName, [item]);
+      }
+    }
+
+    const response = [...suppliersMap.entries()].map(([supplier, items]) => ({
+      supplier,
+      items,
+    }));
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Failed to fetch suppliers with catalog items", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch suppliers with catalog items" });
   }
 });
 
