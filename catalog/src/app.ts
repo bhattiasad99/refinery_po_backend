@@ -555,28 +555,100 @@ app.get("/", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/suppliers", async (_req: Request, res: Response) => {
+type SuppliersListRequest = {
+  page: number;
+  limit: number;
+  offset: number;
+  searchInput: string | null;
+};
+
+function parseSuppliersListRequest(query: Request["query"]): SuppliersListRequest {
+  const limit = Math.min(asPositiveInt(query.limit) ?? 10, 100);
+  const offsetFromQuery = asNonNegativeInt(query.offset);
+  const pageFromQuery = asPositiveInt(query.page);
+  const page =
+    pageFromQuery ??
+    (offsetFromQuery !== null ? Math.floor(offsetFromQuery / limit) + 1 : 1);
+  const offset = (page - 1) * limit;
+
+  return {
+    page,
+    limit,
+    offset,
+    searchInput:
+      asNonEmptyString(query.search) ?? asNonEmptyString(query.q) ?? null,
+  };
+}
+
+app.get("/suppliers", async (req: Request, res: Response) => {
+  const { page, limit, offset, searchInput } = parseSuppliersListRequest(req.query);
+
   try {
     const { AppDataSource } = await import("./db/data-source");
     const repository = AppDataSource.getRepository(Catalog);
-    const rows = await repository.find({ order: { supplierName: "ASC", name: "ASC" } });
 
-    const suppliersMap = new Map<string, Catalog[]>();
-    for (const item of rows) {
-      const existingItems = suppliersMap.get(item.supplierName);
-      if (existingItems) {
-        existingItems.push(item);
-      } else {
-        suppliersMap.set(item.supplierName, [item]);
-      }
+    const totalSuppliersQueryBuilder = repository
+      .createQueryBuilder("catalog")
+      .select("COUNT(DISTINCT catalog.supplier_name)", "total");
+
+    const pagedSuppliersQueryBuilder = repository
+      .createQueryBuilder("catalog")
+      .select("catalog.supplier_name", "supplier")
+      .distinct(true)
+      .orderBy("catalog.supplier_name", "ASC")
+      .take(limit)
+      .skip(offset);
+
+    if (searchInput) {
+      const searchPattern = `%${escapeLikePattern(searchInput)}%`;
+      totalSuppliersQueryBuilder.where(
+        "catalog.supplier_name ILIKE :search ESCAPE '\\'",
+        { search: searchPattern },
+      );
+      pagedSuppliersQueryBuilder.where(
+        "catalog.supplier_name ILIKE :search ESCAPE '\\'",
+        { search: searchPattern },
+      );
     }
 
-    const response = [...suppliersMap.entries()].map(([supplier, items]) => ({
+    const [totalRaw, pagedSuppliers] = await Promise.all([
+      totalSuppliersQueryBuilder.getRawOne<{ total: string | null }>(),
+      pagedSuppliersQueryBuilder.getRawMany<{ supplier: string | null }>(),
+    ]);
+
+    const supplierNames = pagedSuppliers
+      .map((row) => asNonEmptyString(row.supplier))
+      .filter((name): name is string => name !== null);
+
+    const rows =
+      supplierNames.length > 0
+        ? await repository.find({
+            where: { supplierName: In(supplierNames) },
+            order: { supplierName: "ASC", name: "ASC" },
+          })
+        : [];
+
+    const itemsBySupplier = new Map<string, Catalog[]>();
+    for (const item of rows) {
+      const existingItems = itemsBySupplier.get(item.supplierName);
+      if (existingItems) {
+        existingItems.push(item);
+        continue;
+      }
+      itemsBySupplier.set(item.supplierName, [item]);
+    }
+
+    const data = supplierNames.map((supplier) => ({
       supplier,
-      items,
+      items: itemsBySupplier.get(supplier) ?? [],
     }));
 
-    return res.status(200).json(response);
+    return res.status(200).json({
+      data,
+      total: Math.max(Math.floor(toFiniteNumber(totalRaw?.total)), 0),
+      page,
+      limit,
+    });
   } catch (error) {
     console.error("Failed to fetch suppliers with catalog items", error);
     return res
