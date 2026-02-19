@@ -10,6 +10,8 @@ export const SERVICE_NAME = "departments";
 
 const SYNC_MAX_ATTEMPTS = 8;
 const SYNC_RETRY_DELAY_MS = 500;
+const DB_INIT_MAX_ATTEMPTS = 8;
+const DB_INIT_RETRY_DELAY_MS = 1000;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,8 +52,26 @@ async function syncWithEventBus() {
   }
 }
 
+async function initializeDatabaseWithRetry() {
+  for (let attempt = 1; attempt <= DB_INIT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await AppDataSource.initialize();
+      return;
+    } catch (error) {
+      if (attempt === DB_INIT_MAX_ATTEMPTS) {
+        throw error;
+      }
+
+      console.warn(
+        `Service: ${SERVICE_NAME} - Database init attempt ${attempt}/${DB_INIT_MAX_ATTEMPTS} failed; retrying...`,
+      );
+      await delay(DB_INIT_RETRY_DELAY_MS * attempt);
+    }
+  }
+}
+
 async function startServer() {
-  await AppDataSource.initialize();
+  await initializeDatabaseWithRetry();
   app.listen(port, () => {
     console.log(`Service: ${SERVICE_NAME} - Listening on http://localhost:${port}`);
     void syncWithEventBus();

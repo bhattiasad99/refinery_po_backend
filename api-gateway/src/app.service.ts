@@ -21,7 +21,7 @@ type GatewayIncomingEvent = {
   timestamp?: string;
 };
 
-const SERVICES: ServiceConfig[] = [
+export const SERVICES: ServiceConfig[] = [
   {
     serviceName: 'catalog',
     url: process.env.SERVICE_CATALOG_URL?.trim() as string,
@@ -43,6 +43,10 @@ const SERVICES: ServiceConfig[] = [
     url: process.env.SERVICE_USERS_URL?.trim() as string,
   },
 ];
+
+export const PROXIED_SERVICE_NAMES = SERVICES.map(
+  ({ serviceName }) => serviceName,
+);
 
 @Injectable()
 export class AppService {

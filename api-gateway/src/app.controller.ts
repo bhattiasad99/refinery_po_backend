@@ -1,5 +1,4 @@
-import { All, Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
@@ -19,19 +18,6 @@ export class AppController {
     return {
       body: this.appService.receiveEvent(payload),
       message: 'Event received',
-    };
-  }
-
-  @All('*')
-  async proxy(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const upstream = await this.appService.forward(request);
-    response.status(upstream.status);
-    return {
-      body: upstream.body,
-      message: upstream.message,
     };
   }
 }

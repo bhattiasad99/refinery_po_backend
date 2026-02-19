@@ -29,6 +29,27 @@ describe("app routes", () => {
     expect(response.status).toBe(403);
   });
 
+  it("GET /single-user blocks access without internal key", async () => {
+    const response = await request(app).get("/single-user?id=abc");
+    expect(response.status).toBe(403);
+  });
+
+  it("GET /single-user validates required query params", async () => {
+    const response = await request(app).get("/single-user").set("x-internal-key", "test-key");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "id or email is required" });
+  });
+
+  it("GET /single-user rejects both id and email together", async () => {
+    const response = await request(app)
+      .get("/single-user?id=abc&email=user@example.com")
+      .set("x-internal-key", "test-key");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ message: "provide either id or email, not both" });
+  });
+
   afterAll(() => {
     process.env.INTERNAL_SERVICE_KEY = originalKey;
   });
