@@ -41,6 +41,9 @@ export class Catalog {
   @JoinColumn({ name: "supplier_name", referencedColumnName: "name" })
   supplier!: Supplier;
 
+  @Column({ name: "created_by", type: "varchar", length: 140 })
+  createdBy!: string;
+
   @Column({ type: "varchar", length: 255, nullable: true })
   manufacturer!: string | null;
 

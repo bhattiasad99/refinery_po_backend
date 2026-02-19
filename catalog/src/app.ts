@@ -25,6 +25,8 @@ type IncomingCatalogItem = {
   compatibleWith?: unknown;
 };
 
+type CatalogEventName = "create_catalog_item" | "edit_catalog_item";
+
 const SPEC_FIELD_MAP = {
   standard: "standard",
   supplier: "specsSupplier",
@@ -200,12 +202,13 @@ function parseIncomingCatalogItem(
   };
 }
 
-function mapToCatalogEntity(item: IncomingCatalogItem): Catalog {
+function mapToCatalogEntity(item: IncomingCatalogItem, createdBy: string): Catalog {
   const payload: Partial<Catalog> = {
     id: item.id,
     name: item.name,
     categoryName: item.category,
     supplierName: item.supplier,
+    createdBy,
     manufacturer: item.manufacturer ?? null,
     model: item.model,
     description: item.description ?? null,
@@ -236,12 +239,14 @@ function buildEventBody(catalog: Catalog): Record<string, unknown> {
     leadTimeDays: catalog.leadTimeDays,
     priceUsd: catalog.priceUsd,
     inStock: catalog.inStock,
+    createdBy: catalog.createdBy,
     compatibleWith: catalog.compatibleWith ?? [],
   };
 }
 
-async function emitCreateCatalogItemEvent(
+async function emitCatalogItemEvent(
   catalog: Catalog,
+  eventName: CatalogEventName,
   requestPath: string,
 ): Promise<void> {
   const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
@@ -259,7 +264,7 @@ async function emitCreateCatalogItemEvent(
   }
 
   const eventPayload = {
-    name: "create_catalog_item",
+    name: eventName,
     body: buildEventBody(catalog),
     source: SERVICE_NAME,
     url: requestPath,
@@ -272,9 +277,7 @@ async function emitCreateCatalogItemEvent(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Event bus returned ${response.status} while emitting create_catalog_item`,
-    );
+    throw new Error(`Event bus returned ${response.status} while emitting ${eventName}`);
   }
 }
 
@@ -300,22 +303,158 @@ app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+
+type CatalogSortOption =
+  | "price_asc"
+  | "price_desc"
+  | "lead_time_asc"
+  | "lead_time_desc"
+  | "supplier_asc";
+
+function asPositiveInt(value: unknown): number | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.floor(parsed);
+}
+
+function parseBooleanQuery(value: unknown): boolean | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") {
+    return true;
+  }
+  if (normalized === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+function resolveSortOption(value: unknown): CatalogSortOption | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "price_asc" ||
+    normalized === "price_desc" ||
+    normalized === "lead_time_asc" ||
+    normalized === "lead_time_desc" ||
+    normalized === "supplier_asc"
+  ) {
+    return normalized;
+  }
+
+  return null;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, "\\$&");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 app.get("/", async (req: Request, res: Response) => {
-  const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
-  const limit =
-    Number.isFinite(rawLimit) && rawLimit && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+  const limit = Math.min(asPositiveInt(req.query.limit) ?? 50, 200);
+  const offset = Math.max(asPositiveInt(req.query.offset) ?? 0, 0);
+  const searchInput =
+    asNonEmptyString(req.query.search) ?? asNonEmptyString(req.query.q) ?? null;
+  const category = asNonEmptyString(req.query.category);
+  const inStock = parseBooleanQuery(req.query.inStock);
+  const sort = resolveSortOption(req.query.sort);
+  const simulatedDelayMs = Math.min(asPositiveInt(req.query.simulateDelayMs) ?? 0, 3000);
 
   try {
+    if (simulatedDelayMs > 0) {
+      await sleep(simulatedDelayMs);
+    }
+
     const { AppDataSource } = await import("./db/data-source");
     const repository = AppDataSource.getRepository(Catalog);
-    const rows = await repository.find({
-      order: { name: "ASC" },
-      take: limit,
-    });
+    const queryBuilder = repository.createQueryBuilder("catalog");
+
+    if (searchInput) {
+      const searchPattern = `%${escapeLikePattern(searchInput)}%`;
+      queryBuilder.andWhere(
+        "(catalog.id ILIKE :search ESCAPE '\\' OR " +
+          "catalog.name ILIKE :search ESCAPE '\\' OR " +
+          "catalog.supplier_name ILIKE :search ESCAPE '\\' OR " +
+          "catalog.manufacturer ILIKE :search ESCAPE '\\' OR " +
+          "catalog.model ILIKE :search ESCAPE '\\')",
+        { search: searchPattern },
+      );
+    }
+
+    if (category) {
+      queryBuilder.andWhere("catalog.category_name = :category", { category });
+    }
+
+    if (inStock !== null) {
+      queryBuilder.andWhere("catalog.in_stock = :inStock", { inStock });
+    }
+
+    switch (sort) {
+      case "price_asc":
+        queryBuilder.orderBy("catalog.price_usd", "ASC");
+        break;
+      case "price_desc":
+        queryBuilder.orderBy("catalog.price_usd", "DESC");
+        break;
+      case "lead_time_asc":
+        queryBuilder.orderBy("catalog.lead_time_days", "ASC");
+        break;
+      case "lead_time_desc":
+        queryBuilder.orderBy("catalog.lead_time_days", "DESC");
+        break;
+      case "supplier_asc":
+        queryBuilder.orderBy("catalog.supplier_name", "ASC");
+        break;
+      default:
+        queryBuilder.orderBy("catalog.name", "ASC");
+        break;
+    }
+
+    queryBuilder.take(limit).skip(offset);
+    const rows = await queryBuilder.getMany();
     return res.status(200).json(rows);
   } catch (error) {
     console.error("Failed to fetch catalog items", error);
     return res.status(500).json({ message: "Failed to fetch catalog items" });
+  }
+});
+
+app.get("/:id", async (req: Request, res: Response) => {
+  const id = asNonEmptyString(req.params.id);
+  if (!id) {
+    return res.status(400).json({ message: "Catalog id is required" });
+  }
+
+  try {
+    const { AppDataSource } = await import("./db/data-source");
+    const repository = AppDataSource.getRepository(Catalog);
+    const row = await repository.findOne({ where: { id } });
+
+    if (!row) {
+      return res.status(404).json({ message: "Catalog item not found" });
+    }
+
+    return res.status(200).json(row);
+  } catch (error) {
+    console.error("Failed to fetch catalog item", error);
+    return res.status(500).json({ message: "Failed to fetch catalog item" });
   }
 });
 
@@ -327,6 +466,11 @@ app.post("/events", (req, res) => {
 });
 
 async function handleBulkCreateCatalogItems(req: Request, res: Response) {
+  const requestUserId = asNonEmptyString(req.header("x-user-id"));
+  if (!requestUserId) {
+    return res.status(401).json({ message: "Authenticated user id is required" });
+  }
+
   if (!Array.isArray(req.body)) {
     return res.status(400).json({
       message:
@@ -378,27 +522,60 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
     const existingRows =
       itemIds.length > 0
         ? await catalogRepository.find({
-            select: { id: true },
+            select: { id: true, createdBy: true },
             where: { id: In(itemIds) },
           })
         : [];
-    const existingIdSet = new Set(existingRows.map((row) => row.id));
+    const existingRowById = new Map(existingRows.map((row) => [row.id, row]));
 
-    const itemsToInsert = uniqueItems.filter((item) => !existingIdSet.has(item.id));
+    const itemsToCreate: IncomingCatalogItem[] = [];
+    const itemsToUpdate: IncomingCatalogItem[] = [];
+    for (const item of uniqueItems) {
+      if (existingRowById.has(item.id)) {
+        itemsToUpdate.push(item);
+      } else {
+        itemsToCreate.push(item);
+      }
+    }
+
     const createdCatalogs =
-      itemsToInsert.length > 0
-        ? await catalogRepository.save(itemsToInsert.map(mapToCatalogEntity), {
-            chunk: 100,
-          })
+      itemsToCreate.length > 0
+        ? await catalogRepository.save(
+            itemsToCreate.map((item) => mapToCatalogEntity(item, requestUserId)),
+            { chunk: 100 },
+          )
         : [];
 
+    const updatedCatalogs =
+      itemsToUpdate.length > 0
+        ? await catalogRepository.save(
+            itemsToUpdate.map((item) => {
+              const existingRow = existingRowById.get(item.id);
+              const existingCreatedBy = asNonEmptyString(existingRow?.createdBy);
+              return mapToCatalogEntity(item, existingCreatedBy ?? requestUserId);
+            }),
+            { chunk: 100 },
+          )
+        : [];
+
+    const eventsToEmit: Array<{ catalog: Catalog; eventName: CatalogEventName }> = [
+      ...createdCatalogs.map((catalog) => ({
+        catalog,
+        eventName: "create_catalog_item" as const,
+      })),
+      ...updatedCatalogs.map((catalog) => ({
+        catalog,
+        eventName: "edit_catalog_item" as const,
+      })),
+    ];
+
     const emitResults = await Promise.allSettled(
-      createdCatalogs.map((catalog) =>
-        emitCreateCatalogItemEvent(catalog, req.originalUrl || "/catalog/bulk"),
+      eventsToEmit.map(({ catalog, eventName }) =>
+        emitCatalogItemEvent(catalog, eventName, req.originalUrl || "/catalog/bulk"),
       ),
     );
 
-    const failedEvents: Array<{ id: string; reason: string }> = [];
+    const failedEvents: Array<{ id: string; eventName: CatalogEventName; reason: string }> = [];
     for (let index = 0; index < emitResults.length; index += 1) {
       const result = emitResults[index];
       if (result.status !== "rejected") {
@@ -406,7 +583,8 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       }
 
       failedEvents.push({
-        id: createdCatalogs[index]?.id ?? "unknown",
+        id: eventsToEmit[index]?.catalog.id ?? "unknown",
+        eventName: eventsToEmit[index]?.eventName ?? "create_catalog_item",
         reason:
           result.reason instanceof Error
             ? result.reason.message
@@ -416,18 +594,18 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
 
     if (failedEvents.length > 0) {
       return res.status(502).json({
-        message: "Catalog items were saved, but some create_catalog_item events failed",
+        message: "Catalog items were saved, but some events failed",
         createdCount: createdCatalogs.length,
-        skippedExistingCount: uniqueItems.length - createdCatalogs.length,
+        updatedCount: updatedCatalogs.length,
         eventFailures: failedEvents,
       });
     }
 
     return res.status(201).json({
       createdCount: createdCatalogs.length,
-      skippedExistingCount: uniqueItems.length - createdCatalogs.length,
+      updatedCount: updatedCatalogs.length,
       duplicateIdsInPayload: parsedItems.length - uniqueItems.length,
-      eventName: "create_catalog_item",
+      emittedEventNames: ["create_catalog_item", "edit_catalog_item"],
     });
   } catch (error) {
     console.error("Failed to bulk create catalog items", error);
@@ -436,4 +614,3 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
 }
 
 app.post("/bulk", handleBulkCreateCatalogItems);
-app.post("/catalog/bulk", handleBulkCreateCatalogItems);
