@@ -300,6 +300,25 @@ app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/", async (req: Request, res: Response) => {
+  const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+  const limit =
+    Number.isFinite(rawLimit) && rawLimit && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+
+  try {
+    const { AppDataSource } = await import("./db/data-source");
+    const repository = AppDataSource.getRepository(Catalog);
+    const rows = await repository.find({
+      order: { name: "ASC" },
+      take: limit,
+    });
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Failed to fetch catalog items", error);
+    return res.status(500).json({ message: "Failed to fetch catalog items" });
+  }
+});
+
 app.post("/events", (req, res) => {
   return res.status(200).json({
     accepted: true,
@@ -307,7 +326,7 @@ app.post("/events", (req, res) => {
   });
 });
 
-app.post("/catalog/bulk", async (req: Request, res: Response) => {
+async function handleBulkCreateCatalogItems(req: Request, res: Response) {
   if (!Array.isArray(req.body)) {
     return res.status(400).json({
       message:
@@ -414,4 +433,7 @@ app.post("/catalog/bulk", async (req: Request, res: Response) => {
     console.error("Failed to bulk create catalog items", error);
     return res.status(500).json({ message: "Failed to bulk create catalog items" });
   }
-});
+}
+
+app.post("/bulk", handleBulkCreateCatalogItems);
+app.post("/catalog/bulk", handleBulkCreateCatalogItems);

@@ -6,8 +6,13 @@ import { parseGetUserQuery } from "./schemas/get-user.schema";
 import { parseIncomingEvent } from "./schemas/incoming-event.schema";
 import { parseVerifyCredentialsInput } from "./schemas/verify-credentials.schema";
 import { backfillProvider } from "./services/backfill.provider";
+import {
+  createRefreshSession,
+  revokeRefreshSession,
+  rotateRefreshSession,
+} from "./services/auth-session.service";
 import { processIncomingEvent } from "./services/events.service";
-import { createUser, getUserByIdOrEmail, verifyCredentials } from "./services/user.service";
+import { createUser, getUserByIdOrEmail, listUsers, verifyCredentials } from "./services/user.service";
 
 export const app = express();
 
@@ -17,6 +22,40 @@ app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/", async (req: Request, res: Response) => {
+  const hasLookupQuery = "id" in req.query || "email" in req.query;
+
+  try {
+    if (hasLookupQuery) {
+      const parsedQuery = parseGetUserQuery(req.query);
+      if (!parsedQuery.ok) {
+        return res.status(400).json({ message: parsedQuery.message });
+      }
+
+      const result = await getUserByIdOrEmail(parsedQuery.value);
+      if (!result.ok) {
+        return res.status(result.status).json({ message: result.message });
+      }
+
+      return res.status(200).json(result.value);
+    }
+
+    const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+    const result = await listUsers({
+      limit: Number.isFinite(rawLimit) ? rawLimit : undefined,
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+
+    return res.status(200).json(result.value);
+  } catch (error) {
+    console.error("Failed to fetch users", error);
+    return res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
 app.get("/single-user", async (req: Request, res: Response) => {
   const parsedQuery = parseGetUserQuery(req.query);
   if (!parsedQuery.ok) {
@@ -104,6 +143,89 @@ async function handleVerifyCredentials(req: Request, res: Response) {
 }
 
 app.post("/verify-credentials", handleVerifyCredentials);
+
+function parseSessionDate(value: unknown): Date | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+app.post("/auth/sessions", async (req: Request, res: Response) => {
+  const input = req.body as Record<string, unknown>;
+  const userId = typeof input?.userId === "string" ? input.userId.trim() : "";
+  const tokenHash = typeof input?.tokenHash === "string" ? input.tokenHash.trim() : "";
+  const expiresAt = parseSessionDate(input?.expiresAt);
+
+  if (!userId || !tokenHash || !expiresAt) {
+    return res.status(400).json({ message: "userId, tokenHash, and expiresAt are required" });
+  }
+
+  try {
+    const result = await createRefreshSession({
+      userId,
+      tokenHash,
+      expiresAt,
+    });
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(201).json(result.value);
+  } catch (error) {
+    console.error("Failed to create refresh session", error);
+    return res.status(500).json({ message: "Failed to create refresh session" });
+  }
+});
+
+app.post("/auth/sessions/rotate", async (req: Request, res: Response) => {
+  const input = req.body as Record<string, unknown>;
+  const tokenHash = typeof input?.tokenHash === "string" ? input.tokenHash.trim() : "";
+  const newTokenHash =
+    typeof input?.newTokenHash === "string" ? input.newTokenHash.trim() : "";
+  const expiresAt = parseSessionDate(input?.expiresAt);
+
+  if (!tokenHash || !newTokenHash || !expiresAt) {
+    return res.status(400).json({
+      message: "tokenHash, newTokenHash, and expiresAt are required",
+    });
+  }
+
+  try {
+    const result = await rotateRefreshSession({
+      tokenHash,
+      newTokenHash,
+      expiresAt,
+    });
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(200).json(result.value);
+  } catch (error) {
+    console.error("Failed to rotate refresh session", error);
+    return res.status(500).json({ message: "Failed to rotate refresh session" });
+  }
+});
+
+app.post("/auth/sessions/revoke", async (req: Request, res: Response) => {
+  const input = req.body as Record<string, unknown>;
+  const tokenHash = typeof input?.tokenHash === "string" ? input.tokenHash.trim() : "";
+
+  if (!tokenHash) {
+    return res.status(400).json({ message: "tokenHash is required" });
+  }
+
+  try {
+    const result = await revokeRefreshSession({ tokenHash });
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.status(200).json(result.value);
+  } catch (error) {
+    console.error("Failed to revoke refresh session", error);
+    return res.status(500).json({ message: "Failed to revoke refresh session" });
+  }
+});
 
 app.post("/back-fill/create_users", async (_req: Request, res: Response) => {
   try {

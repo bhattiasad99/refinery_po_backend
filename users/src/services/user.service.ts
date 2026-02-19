@@ -26,6 +26,10 @@ type VerifyCredentialsResult =
   | { ok: true; value: PublicUser }
   | { ok: false; status: number; message: string };
 
+type ListUsersResult =
+  | { ok: true; value: PublicUser[] }
+  | { ok: false; status: number; message: string };
+
 function toPublicUser(user: User): PublicUser {
   return {
     id: user.id,
@@ -123,4 +127,16 @@ export async function verifyCredentials(
   }
 
   return { ok: true, value: toPublicUser(user) };
+}
+
+export async function listUsers(input: { limit?: number } = {}): Promise<ListUsersResult> {
+  const userRepository = AppDataSource.getRepository(User);
+  const limit = input.limit && input.limit > 0 ? Math.min(input.limit, 200) : 50;
+
+  const users = await userRepository.find({
+    order: { createdAt: "DESC" },
+    take: limit,
+  });
+
+  return { ok: true, value: users.map(toPublicUser) };
 }

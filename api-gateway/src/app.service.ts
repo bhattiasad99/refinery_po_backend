@@ -21,6 +21,14 @@ type GatewayIncomingEvent = {
   timestamp?: string;
 };
 
+type AuthenticatedRequest = Request & {
+  user?: {
+    sub: string;
+    email: string;
+    departmentId: string;
+  };
+};
+
 export const SERVICES: ServiceConfig[] = [
   {
     serviceName: 'catalog',
@@ -156,11 +164,13 @@ export class AppService {
   }
 
   private getForwardHeaders(request: Request): Record<string, string> {
+    const authRequest = request as AuthenticatedRequest;
     const excluded = new Set([
       'host',
       'connection',
       'content-length',
       'x-internal-key',
+      'authorization',
     ]);
     const headers: Record<string, string> = {};
 
@@ -174,6 +184,12 @@ export class AppService {
     const internalKey = process.env.INTERNAL_SERVICE_KEY?.trim();
     if (internalKey) {
       headers['x-internal-key'] = internalKey;
+    }
+
+    if (authRequest.user) {
+      headers['x-user-id'] = authRequest.user.sub;
+      headers['x-user-email'] = authRequest.user.email;
+      headers['x-user-department-id'] = authRequest.user.departmentId;
     }
 
     return headers;

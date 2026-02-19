@@ -26,6 +26,9 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) => {
+  return res.status(200).json([]);
+});
 app.post("/events", (req, res) => {
   return res.status(200).json({
     accepted: true,

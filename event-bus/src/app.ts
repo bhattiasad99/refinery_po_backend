@@ -15,6 +15,12 @@ app.use(checkResource);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) => {
+  res.json({
+    service: "event-bus",
+    routes: ["/events", "/events/failed", "/sync"],
+  });
+});
 
 app.get("/sync", (_req, res) => {
   res.json(getRegisteredServices());
