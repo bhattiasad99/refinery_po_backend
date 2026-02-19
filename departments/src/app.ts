@@ -1,7 +1,9 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
 import { AppDataSource } from "./db/data-source";
 import { Department } from "./entities/department.entity";
+import { openApiSpec } from "./openapi";
 import { createDepartmentSchema } from "./schemas/create-department.schema";
 import { emitAfterWrite } from "./services/emit-after-write.service";
 
@@ -10,7 +12,12 @@ export const app = express();
 app.use(express.json());
 
 function checkResource(req: Request, res: Response, next: NextFunction) {
-  if (req.path === "/health" || req.path === "/healthz") {
+  if (
+    req.path === "/health" ||
+    req.path === "/healthz" ||
+    req.path === "/openapi.json" ||
+    req.path.startsWith("/docs")
+  ) {
     return next();
   }
 
@@ -28,6 +35,8 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 }
 
 app.use(checkResource);
+app.get("/openapi.json", (_req, res) => res.status(200).json(openApiSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.post("/events", (req, res) => {

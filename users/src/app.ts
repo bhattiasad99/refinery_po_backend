@@ -1,6 +1,8 @@
 import express from "express";
 import type { Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
 import { checkResource } from "./middleware/check-resource";
+import { openApiSpec } from "./openapi";
 import { parseCreateUserInput } from "./schemas/create-user.schema";
 import { parseGetUserQuery } from "./schemas/get-user.schema";
 import { parseIncomingEvent } from "./schemas/incoming-event.schema";
@@ -20,6 +22,14 @@ export const app = express();
 app.use(express.json());
 
 app.use(checkResource);
+app.get("/openapi.json", (_req, res) => res.status(200).json(openApiSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
+
+function emitAfterWriteAsync(name: string, body: unknown, url: string): void {
+  void emitAfterWrite(name, body, url).catch((error) => {
+    console.error(`Event emit failed for ${name}`, error);
+  });
+}
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -107,7 +117,7 @@ app.post("/", async (req: Request, res: Response) => {
       return res.status(result.status).json({ message: result.message });
     }
 
-    await emitAfterWrite("user_created", result.value, req.originalUrl || "/");
+    emitAfterWriteAsync("user_created", result.value, req.originalUrl || "/");
 
     return res.status(201).json({
       id: result.value.id,
@@ -174,7 +184,7 @@ app.post("/auth/sessions", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.message });
     }
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "refresh_session_created",
       result.value.session,
       req.originalUrl || "/auth/sessions",
@@ -208,7 +218,7 @@ app.post("/auth/sessions/rotate", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.message });
     }
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "refresh_session_rotated",
       {
         revokedSession: result.value.revokedSession,
@@ -240,7 +250,7 @@ app.post("/auth/sessions/revoke", async (req: Request, res: Response) => {
       return res.status(result.status).json({ message: result.message });
     }
     if (result.value.session) {
-      await emitAfterWrite(
+      emitAfterWriteAsync(
         "refresh_session_revoked",
         result.value.session,
         req.originalUrl || "/auth/sessions/revoke",

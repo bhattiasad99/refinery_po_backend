@@ -28,6 +28,7 @@ type PurchaseOrderSnapshot = {
   createdAt: string;
   updatedAt: string;
   status: string;
+  poNumber: string | null;
   submittedAt: string | null;
   submittedBy: string | null;
   approvedAt: string | null;
@@ -84,6 +85,7 @@ const SCALAR_KEYS: Array<keyof Omit<PurchaseOrderSnapshot, "id" | "lineItems" | 
   "createdAt",
   "updatedAt",
   "status",
+  "poNumber",
   "submittedAt",
   "submittedBy",
   "approvedAt",
@@ -150,6 +152,7 @@ export function toPurchaseOrderSnapshot(entity: PurchaseOrder): PurchaseOrderSna
     createdAt: entity.createdAt.toISOString(),
     updatedAt: entity.updatedAt.toISOString(),
     status: entity.status,
+    poNumber: entity.poNumber,
     submittedAt: entity.submittedAt ? entity.submittedAt.toISOString() : null,
     submittedBy: entity.submittedBy,
     approvedAt: entity.approvedAt ? entity.approvedAt.toISOString() : null,

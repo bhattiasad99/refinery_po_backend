@@ -1,8 +1,8 @@
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./services/recieve-event.service", () => ({
-  recieveEventService: vi.fn(),
+vi.mock("./services/receive-event.service", () => ({
+  receiveEventService: vi.fn(),
 }));
 vi.mock("./services/get-events.service", () => ({
   getEvents: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock("./services/get-failed-events.service", () => ({
 }));
 
 import { app } from "./app";
-import { recieveEventService } from "./services/recieve-event.service";
+import { receiveEventService } from "./services/receive-event.service";
 import { getEvents } from "./services/get-events.service";
 import { getFailedEvents } from "./services/get-failed-events.service";
 
@@ -58,8 +58,8 @@ describe("app routes", () => {
     expect(response.body.ok).toBe(false);
   });
 
-  it("POST /events stores event and returns summary", async () => {
-    vi.mocked(recieveEventService).mockResolvedValue({
+  it("POST /events accepts event for async processing", async () => {
+    vi.mocked(receiveEventService).mockResolvedValue({
       savedEvent: {
         id: "evt-1",
         name: "product.created",
@@ -83,17 +83,12 @@ describe("app routes", () => {
         url: "  /products/10  ",
       });
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(202);
     expect(response.body).toEqual({
-      message: "Event stored and delivery attempted",
-      eventId: "evt-1",
-      delivery: {
-        total: 2,
-        success: 1,
-        failed: 1,
-      },
+      message: "Event accepted for async processing",
+      accepted: true,
     });
-    expect(recieveEventService).toHaveBeenCalledWith({
+    expect(receiveEventService).toHaveBeenCalledWith({
       name: "product.created",
       body: { id: 10 },
       source: "catalog",

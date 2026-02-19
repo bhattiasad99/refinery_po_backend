@@ -1,7 +1,9 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
 import { AppDataSource } from "./db/data-source";
 import { PurchaseOrder } from "./entities/purchase-order.entity";
+import { openApiSpec } from "./openapi";
 import { parseIncomingEvent } from "./schemas/incoming-event.schema";
 import {
   parsePurchaseOrderId,
@@ -16,6 +18,7 @@ import {
   canTransitionPurchaseOrderStatus,
   createPurchaseOrder,
   PURCHASE_ORDER_STATUS,
+  SupplierMismatchConflictError,
   updatePurchaseOrder,
   updatePurchaseOrderStatus,
   validatePurchaseOrderForSubmission,
@@ -26,8 +29,19 @@ export const app = express();
 
 app.use(express.json());
 
+function emitAfterWriteAsync(name: string, payload: unknown, urlPath: string): void {
+  void emitAfterWrite(name, payload, urlPath).catch((error) => {
+    console.error(`Event emit failed for ${name}`, error);
+  });
+}
+
 function checkResource(req: Request, res: Response, next: NextFunction) {
-  if (req.path === "/health" || req.path === "/healthz") {
+  if (
+    req.path === "/health" ||
+    req.path === "/healthz" ||
+    req.path === "/openapi.json" ||
+    req.path.startsWith("/docs")
+  ) {
     return next();
   }
 
@@ -45,6 +59,8 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 }
 
 app.use(checkResource);
+app.get("/openapi.json", (_req, res) => res.status(200).json(openApiSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 function resolveActor(req: Request): string | null {
   const email = req.header("x-user-email")?.trim();
@@ -61,11 +77,12 @@ app.get("/", async (_req, res) => {
   try {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const rows = await repository.find({
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         createdAt: "DESC",
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
       take: 100,
     });
@@ -86,10 +103,11 @@ app.get("/:purchaseOrderId", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const row = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
 
@@ -112,13 +130,16 @@ app.post("/", async (req: Request, res: Response) => {
 
   try {
     const created = await createPurchaseOrder(parsedPayload.value);
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "create_purchase_order",
       buildCreatePurchaseOrderEventPayload(created),
       `/${created.id}`,
     );
     return res.status(201).json(created);
   } catch (error) {
+    if (error instanceof SupplierMismatchConflictError) {
+      return res.status(409).json({ message: error.message });
+    }
     console.error("Failed to create purchase order", error);
     return res.status(500).json({ message: "Failed to create purchase order" });
   }
@@ -139,10 +160,11 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const beforeUpdate = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
     if (!beforeUpdate) {
@@ -159,7 +181,7 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -167,6 +189,9 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
 
     return res.status(200).json(updated);
   } catch (error) {
+    if (error instanceof SupplierMismatchConflictError) {
+      return res.status(409).json({ message: error.message });
+    }
     console.error("Failed to update purchase order", error);
     return res.status(500).json({ message: "Failed to update purchase order" });
   }
@@ -182,10 +207,11 @@ app.post("/:purchaseOrderId/submit", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const beforeUpdate = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
     if (!beforeUpdate) {
@@ -212,7 +238,7 @@ app.post("/:purchaseOrderId/submit", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -235,10 +261,11 @@ app.post("/:purchaseOrderId/approve", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const beforeUpdate = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
     if (!beforeUpdate) {
@@ -261,7 +288,7 @@ app.post("/:purchaseOrderId/approve", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -284,10 +311,11 @@ app.post("/:purchaseOrderId/reject", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const beforeUpdate = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
     if (!beforeUpdate) {
@@ -310,7 +338,7 @@ app.post("/:purchaseOrderId/reject", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -333,10 +361,11 @@ app.post("/:purchaseOrderId/fulfill", async (req: Request, res: Response) => {
     const repository = AppDataSource.getRepository(PurchaseOrder);
     const beforeUpdate = await repository.findOne({
       where: { id: parsedId.value },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
     if (!beforeUpdate) {
@@ -359,7 +388,7 @@ app.post("/:purchaseOrderId/fulfill", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await emitAfterWrite(
+    emitAfterWriteAsync(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,

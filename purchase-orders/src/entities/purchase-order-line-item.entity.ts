@@ -31,8 +31,8 @@ export class PurchaseOrderLineItem {
   @Column({ name: "item_name", type: "varchar", length: 255, nullable: true })
   item!: string | null;
 
-  @Column({ name: "supplier_name", type: "varchar", length: 200, nullable: true })
-  supplier!: string | null;
+  @Column({ name: "supplier_name", type: "varchar", length: 200, nullable: false })
+  supplier!: string;
 
   @Column({ name: "category_name", type: "varchar", length: 140, nullable: true })
   category!: string | null;

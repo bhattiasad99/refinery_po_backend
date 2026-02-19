@@ -190,6 +190,7 @@ function normalizeEvent(raw: unknown): EventLike | null {
 }
 
 async function processProjectionEvent(event: EventLike): Promise<void> {
+  // Route by source/name heuristics because producer services emit slightly different payload contracts.
   const source = event.source.toLowerCase();
   const name = event.name.toLowerCase();
   const body = event.data;
@@ -234,6 +235,7 @@ async function processProjectionEvent(event: EventLike): Promise<void> {
 }
 
 async function getSyncCursor(): Promise<Date> {
+  // Cursor tracks "last processed timestamp + 1ms" for idempotent incremental sync.
   const repository = AppDataSource.getRepository(ProjectionSyncState);
   const row = await repository.findOne({ where: { key: SYNC_STATE_KEY } });
   if (!row?.lastCursorAt) {
@@ -319,6 +321,7 @@ export async function syncProjectionsFromEventBus(): Promise<void> {
       return;
     }
 
+    // Move cursor forward by 1ms to avoid re-reading the boundary event on next page/sync.
     cursor = new Date(maxTimestamp.getTime() + 1);
     await setSyncCursor(cursor);
 

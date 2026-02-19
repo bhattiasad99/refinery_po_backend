@@ -1,7 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 
 export function checkResource(req: Request, res: Response, next: NextFunction) {
-  if (req.path === "/health" || req.path === "/healthz") {
+  if (
+    req.path === "/health" ||
+    req.path === "/healthz" ||
+    req.path === "/openapi.json" ||
+    req.path.startsWith("/docs")
+  ) {
     return next();
   }
 

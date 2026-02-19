@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 import { PurchaseOrderLineItem } from "./purchase-order-line-item.entity";
 import { PurchaseOrderPaymentMilestone } from "./purchase-order-payment-milestone.entity";
+import { PurchaseOrderStatusHistory } from "./purchase-order-status-history.entity";
 import { decimalTransformer } from "./decimal.transformer";
 
 @Entity({ name: "purchase_orders" })
@@ -17,6 +18,9 @@ export class PurchaseOrder {
 
   @Column({ type: "varchar", length: 40, default: "DRAFT" })
   status!: string;
+
+  @Column({ name: "po_number", type: "varchar", length: 40, unique: true, nullable: true })
+  poNumber!: string | null;
 
   @Column({ name: "submitted_at", type: "timestamptz", nullable: true })
   submittedAt!: Date | null;
@@ -112,6 +116,11 @@ export class PurchaseOrder {
     cascade: false,
   })
   milestones!: PurchaseOrderPaymentMilestone[];
+
+  @OneToMany(() => PurchaseOrderStatusHistory, (history) => history.purchaseOrder, {
+    cascade: false,
+  })
+  statusHistory!: PurchaseOrderStatusHistory[];
 
   @CreateDateColumn({ type: "timestamptz", name: "created_at" })
   createdAt!: Date;

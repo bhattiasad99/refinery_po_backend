@@ -6,6 +6,14 @@ import {
   Res,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ApiCookieAuth,
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -26,10 +34,12 @@ function parseCookieValue(cookieHeader: string | undefined, name: string): strin
   return '';
 }
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ApiExcludeEndpoint()
   @Post('login')
   async login(
     @Body(
@@ -53,6 +63,10 @@ export class AuthController {
     };
   }
 
+  @ApiOperation({ summary: 'Refresh access token using refresh cookie' })
+  @ApiCookieAuth('refresh-cookie')
+  @ApiOkResponse({ description: 'Refresh successful' })
+  @ApiUnauthorizedResponse({ description: 'Refresh token is missing/invalid' })
   @Post('refresh')
   async refresh(
     @Req() request: Request,
@@ -72,6 +86,9 @@ export class AuthController {
     };
   }
 
+  @ApiOperation({ summary: 'Logout current session and clear refresh cookie' })
+  @ApiCookieAuth('refresh-cookie')
+  @ApiOkResponse({ description: 'Logout successful' })
   @Post('logout')
   async logout(
     @Req() request: Request,

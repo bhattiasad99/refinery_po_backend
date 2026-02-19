@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { EntityManager } from "typeorm";
 import { AppDataSource } from "../db/data-source";
 import { PurchaseOrderLineItem } from "../entities/purchase-order-line-item.entity";
+import { PurchaseOrderNumberCounter } from "../entities/purchase-order-number-counter.entity";
 import { PurchaseOrderPaymentMilestone } from "../entities/purchase-order-payment-milestone.entity";
 import { PurchaseOrder } from "../entities/purchase-order.entity";
+import { PurchaseOrderStatusHistory } from "../entities/purchase-order-status-history.entity";
 import { PurchaseOrderWritePayload } from "../schemas/purchase-order.schema";
 
 export const PURCHASE_ORDER_STATUS = {
@@ -17,6 +19,10 @@ export const PURCHASE_ORDER_STATUS = {
 export type PurchaseOrderStatus =
   typeof PURCHASE_ORDER_STATUS[keyof typeof PURCHASE_ORDER_STATUS];
 
+const PO_NUMBER_PREFIX = "PO";
+const PO_NUMBER_SEQUENCE_LENGTH = 4;
+export const SUPPLIER_MISMATCH_MESSAGE = "All items in a PO must come from the same supplier";
+
 const ALLOWED_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
   DRAFT: [PURCHASE_ORDER_STATUS.SUBMITTED],
   SUBMITTED: [PURCHASE_ORDER_STATUS.APPROVED, PURCHASE_ORDER_STATUS.REJECTED],
@@ -25,12 +31,35 @@ const ALLOWED_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = 
   FULFILLED: [],
 };
 
+export class SupplierMismatchConflictError extends Error {
+  constructor(message = SUPPLIER_MISMATCH_MESSAGE) {
+    super(message);
+    this.name = "SupplierMismatchConflictError";
+  }
+}
+
 function toNullableString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function assertSingleSupplierMatchOrThrow(
+  supplierName: string | null,
+  lineItems: Array<{ supplier?: unknown }>,
+): void {
+  if (lineItems.length > 0 && !supplierName) {
+    throw new SupplierMismatchConflictError();
+  }
+
+  for (const lineItem of lineItems) {
+    const itemSupplier = toNullableString(lineItem.supplier);
+    if (!itemSupplier || itemSupplier !== supplierName) {
+      throw new SupplierMismatchConflictError();
+    }
+  }
 }
 
 function toNullableNumber(value: unknown): number | null {
@@ -58,6 +87,84 @@ function toNullableDate(value: unknown): string | null {
   }
 
   return date.toISOString().slice(0, 10);
+}
+
+function toUtcDayStamp(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function toUtcCounterDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatPurchaseOrderNumber(date: Date, sequence: number): string {
+  const dateStamp = toUtcDayStamp(date);
+  const sequenceStamp = String(sequence).padStart(PO_NUMBER_SEQUENCE_LENGTH, "0");
+  return `${PO_NUMBER_PREFIX}-${dateStamp}-${sequenceStamp}`;
+}
+
+async function getNextPurchaseOrderSequence(manager: EntityManager, date: Date): Promise<number> {
+  // Atomic increment per UTC day to avoid duplicate PO numbers under concurrent submissions.
+  const counterDate = toUtcCounterDate(date);
+  const counterRepository = manager.getRepository(PurchaseOrderNumberCounter);
+
+  const upsertResult = await counterRepository.query(
+    `INSERT INTO purchase_order_number_counters (counter_date, last_value, updated_at)
+     VALUES ($1, 1, NOW())
+     ON CONFLICT (counter_date)
+     DO UPDATE SET
+       last_value = purchase_order_number_counters.last_value + 1,
+       updated_at = NOW()
+     RETURNING last_value`,
+    [counterDate],
+  );
+
+  const sequence = Number(upsertResult?.[0]?.last_value);
+  if (!Number.isFinite(sequence) || sequence <= 0) {
+    throw new Error("Failed to generate purchase order number sequence");
+  }
+
+  return Math.floor(sequence);
+}
+
+async function assignPurchaseOrderNumberIfMissing(
+  manager: EntityManager,
+  purchaseOrder: PurchaseOrder,
+  now: Date,
+): Promise<void> {
+  // Preserve existing numbers on re-submission/update; only assign once.
+  if (purchaseOrder.poNumber) {
+    return;
+  }
+
+  const nextSequence = await getNextPurchaseOrderSequence(manager, now);
+  purchaseOrder.poNumber = formatPurchaseOrderNumber(now, nextSequence);
+}
+
+async function recordStatusTransition(
+  manager: EntityManager,
+  purchaseOrderId: string,
+  fromStatus: string | null,
+  toStatus: PurchaseOrderStatus,
+  changedBy: string | null,
+  changedAt: Date,
+): Promise<void> {
+  const statusHistoryRepository = manager.getRepository(PurchaseOrderStatusHistory);
+  const row = statusHistoryRepository.create({
+    id: randomUUID(),
+    purchaseOrderId,
+    fromStatus,
+    toStatus,
+    changedBy,
+    changedAt,
+  });
+  await statusHistoryRepository.save(row);
 }
 
 export function getAllowedTransitions(status: string): PurchaseOrderStatus[] {
@@ -105,6 +212,7 @@ export function validatePurchaseOrderForSubmission(purchaseOrder: PurchaseOrder)
 }
 
 function applyPayloadToPurchaseOrder(entity: PurchaseOrder, payload: PurchaseOrderWritePayload): void {
+  // Each step supports partial updates and explicit null reset semantics.
   if (payload.step1 !== undefined) {
     const step1 = payload.step1;
     if (step1 === null) {
@@ -220,19 +328,22 @@ function applyPayloadToPurchaseOrder(entity: PurchaseOrder, payload: PurchaseOrd
   }
 }
 
-function buildLineItem(row: PurchaseOrderWritePayload["step2"] extends infer S
-  ? S extends { items?: infer I }
-    ? I extends Array<infer R>
-      ? R
-      : never
-    : never
-  : never, purchaseOrderId: string, sortOrder: number): PurchaseOrderLineItem {
+type Step2ItemInput = NonNullable<NonNullable<PurchaseOrderWritePayload["step2"]>["items"]>[number];
+type Step3MilestoneInput = NonNullable<
+  NonNullable<PurchaseOrderWritePayload["step3"]>["milestones"]
+>[number];
+
+function buildLineItem(
+  row: Step2ItemInput,
+  purchaseOrderId: string,
+  sortOrder: number,
+): PurchaseOrderLineItem {
   const lineItem = new PurchaseOrderLineItem();
   lineItem.id = toNullableString(row.id) ?? randomUUID();
   lineItem.purchaseOrderId = purchaseOrderId;
   lineItem.catalogItemId = toNullableString(row.catalogItemId);
   lineItem.item = toNullableString(row.item);
-  lineItem.supplier = toNullableString(row.supplier);
+  lineItem.supplier = toNullableString(row.supplier) ?? "";
   lineItem.category = toNullableString(row.category);
   lineItem.description = toNullableString(row.description);
   lineItem.quantity = toNullableNumber(row.quantity);
@@ -241,13 +352,11 @@ function buildLineItem(row: PurchaseOrderWritePayload["step2"] extends infer S
   return lineItem;
 }
 
-function buildMilestone(row: PurchaseOrderWritePayload["step3"] extends infer S
-  ? S extends { milestones?: infer I }
-    ? I extends Array<infer R>
-      ? R
-      : never
-    : never
-  : never, purchaseOrderId: string, sortOrder: number): PurchaseOrderPaymentMilestone {
+function buildMilestone(
+  row: Step3MilestoneInput,
+  purchaseOrderId: string,
+  sortOrder: number,
+): PurchaseOrderPaymentMilestone {
   const milestone = new PurchaseOrderPaymentMilestone();
   milestone.id = toNullableString(row.id) ?? randomUUID();
   milestone.purchaseOrderId = purchaseOrderId;
@@ -263,6 +372,7 @@ async function replaceLineItemsIfProvided(
   purchaseOrderId: string,
   payload: PurchaseOrderWritePayload,
 ): Promise<void> {
+  // Treat provided arrays as full replacement to keep ordering and removals deterministic.
   if (!payload.step2 || payload.step2.items === undefined) {
     return;
   }
@@ -308,6 +418,7 @@ export async function createPurchaseOrder(payload: PurchaseOrderWritePayload): P
     const purchaseOrder = repository.create({
       id: randomUUID(),
       status: "DRAFT",
+      poNumber: null,
       submittedAt: null,
       submittedBy: null,
       approvedAt: null,
@@ -337,17 +448,22 @@ export async function createPurchaseOrder(payload: PurchaseOrderWritePayload): P
     });
 
     applyPayloadToPurchaseOrder(purchaseOrder, payload);
+    if (payload.step2?.items !== undefined) {
+      assertSingleSupplierMatchOrThrow(purchaseOrder.supplierName, payload.step2.items ?? []);
+    }
     const saved = await repository.save(purchaseOrder);
 
     await replaceLineItemsIfProvided(manager, saved.id, payload);
     await replaceMilestonesIfProvided(manager, saved.id, payload);
 
+    // Always return a fully hydrated aggregate for API responses.
     const full = await repository.findOneOrFail({
       where: { id: saved.id },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
 
@@ -363,6 +479,7 @@ export async function updatePurchaseOrder(
     const repository = manager.getRepository(PurchaseOrder);
     const existing = await repository.findOne({
       where: { id: purchaseOrderId },
+      relations: ["lineItems"],
     });
 
     if (!existing) {
@@ -370,6 +487,13 @@ export async function updatePurchaseOrder(
     }
 
     applyPayloadToPurchaseOrder(existing, payload);
+    if (payload.step2?.items !== undefined) {
+      assertSingleSupplierMatchOrThrow(existing.supplierName, payload.step2.items ?? []);
+    } else if (payload.step2 === null) {
+      assertSingleSupplierMatchOrThrow(existing.supplierName, existing.lineItems ?? []);
+    } else if (payload.step2?.supplierName !== undefined) {
+      assertSingleSupplierMatchOrThrow(existing.supplierName, existing.lineItems ?? []);
+    }
     await repository.save(existing);
 
     await replaceLineItemsIfProvided(manager, purchaseOrderId, payload);
@@ -377,10 +501,11 @@ export async function updatePurchaseOrder(
 
     const full = await repository.findOneOrFail({
       where: { id: purchaseOrderId },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
 
@@ -403,28 +528,41 @@ export async function updatePurchaseOrderStatus(
       return null;
     }
 
+    const previousStatus = existing.status;
+    const changedAt = new Date();
+    // Transition side-effects are centralized here to keep status timeline consistent.
     existing.status = status;
     if (status === PURCHASE_ORDER_STATUS.SUBMITTED) {
-      existing.submittedAt = new Date();
+      existing.submittedAt = changedAt;
       existing.submittedBy = actor;
+      await assignPurchaseOrderNumberIfMissing(manager, existing, changedAt);
     } else if (status === PURCHASE_ORDER_STATUS.APPROVED) {
-      existing.approvedAt = new Date();
+      existing.approvedAt = changedAt;
       existing.approvedBy = actor;
     } else if (status === PURCHASE_ORDER_STATUS.REJECTED) {
-      existing.rejectedAt = new Date();
+      existing.rejectedAt = changedAt;
       existing.rejectedBy = actor;
     } else if (status === PURCHASE_ORDER_STATUS.FULFILLED) {
-      existing.fulfilledAt = new Date();
+      existing.fulfilledAt = changedAt;
       existing.fulfilledBy = actor;
     }
     await repository.save(existing);
+    await recordStatusTransition(
+      manager,
+      purchaseOrderId,
+      previousStatus,
+      status,
+      actor,
+      changedAt,
+    );
 
     const full = await repository.findOneOrFail({
       where: { id: purchaseOrderId },
-      relations: ["lineItems", "milestones"],
+      relations: ["lineItems", "milestones", "statusHistory"],
       order: {
         lineItems: { sortOrder: "ASC" },
         milestones: { sortOrder: "ASC" },
+        statusHistory: { changedAt: "ASC" },
       },
     });
 

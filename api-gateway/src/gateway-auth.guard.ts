@@ -16,7 +16,22 @@ const PUBLIC_PATHS = new Set<string>([
   '/auth/login',
   '/auth/refresh',
   '/auth/logout',
+  '/docs',
+  '/openapi.json',
+  '/api-specifications',
 ]);
+
+const PUBLIC_PATH_PREFIXES = [
+  '/docs/',
+  '/users/docs',
+  '/users/openapi.json',
+  '/catalog/docs',
+  '/catalog/openapi.json',
+  '/departments/docs',
+  '/departments/openapi.json',
+  '/purchase-orders/docs',
+  '/purchase-orders/openapi.json',
+];
 
 @Injectable()
 export class GatewayAuthGuard implements CanActivate {
@@ -29,7 +44,10 @@ export class GatewayAuthGuard implements CanActivate {
       return true;
     }
 
-    if (PUBLIC_PATHS.has(request.path)) {
+    if (
+      PUBLIC_PATHS.has(request.path) ||
+      PUBLIC_PATH_PREFIXES.some((prefix) => request.path.startsWith(prefix))
+    ) {
       return true;
     }
 

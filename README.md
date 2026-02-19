@@ -14,6 +14,7 @@ This repository is a multi-service backend with:
 - [Environment Model](#environment-model)
 - [Local Stack](#local-stack)
 - [Isolated Service Using Production Env](#isolated-service-using-production-env)
+- [Backend Structure Guide](#backend-structure-guide)
 - [Guidelines](#guidelines)
   - [A. Add a New Service (Automatic)](#a-add-a-new-service-automatic)
   - [B. Add a New Service (Manual)](#b-add-a-new-service-manual)
@@ -75,6 +76,26 @@ npm run up:build
 npm run down
 ```
 
+## OpenAPI Docs
+
+Each backend HTTP service exposes:
+
+- `GET /docs` (Swagger UI)
+- `GET /openapi.json` (raw OpenAPI JSON)
+
+Through API gateway routing, you can access service docs at:
+
+- `/catalog/docs`
+- `/purchase-orders/docs`
+- `/departments/docs`
+- `/users/docs`
+
+Gateway docs are available at:
+
+- `/docs`
+- `/openapi.json`
+- `/api-specifications` (single index endpoint for all gateway/service docs links)
+
 ## Isolated Service Using Production Env
 
 From inside a service folder:
@@ -84,6 +105,12 @@ npm run dev:prod
 ```
 
 This loads root `.env.production` values and runs the service on localhost.
+
+## Backend Structure Guide
+
+For folder conventions, naming rules, and code hygiene standards across all services, see:
+
+- [`BACKEND_STRUCTURE.md`](BACKEND_STRUCTURE.md)
 
 ## Guidelines
 

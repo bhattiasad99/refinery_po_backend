@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { EventFilters, FailedEventFilters, ParsedResult } from '../types';
-import { eventFiltersSchema } from '../schema/get-events.schema';
-import { failedEventFiltersSchema } from '../schema/get-failed-events.schema';
+import { eventFiltersSchema } from '../schemas/get-events.schema';
+import { failedEventFiltersSchema } from '../schemas/get-failed-events.schema';
 
 
 export const eventHelpersProvider = {

@@ -1,8 +1,10 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
 import { In, SelectQueryBuilder } from "typeorm";
 import { Catalog } from "./entities/catalog.entity";
 import { Category } from "./entities/category.entity";
+import { openApiSpec } from "./openapi";
 import { Supplier } from "./entities/supplier.entity";
 import { emitAfterWrite } from "./services/emit-after-write.service";
 
@@ -135,6 +137,7 @@ function parseIncomingCatalogItem(
   value: unknown,
   index: number,
 ): { ok: true; item: IncomingCatalogItem } | { ok: false; message: string } {
+  // Validate producer payload defensively so bulk import failures are explicit and index-specific.
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ok: false, message: `Item at index ${index} must be an object` };
   }
@@ -218,6 +221,7 @@ function mapToCatalogEntity(item: IncomingCatalogItem, createdBy: string): Catal
     compatibleWith: asStringArray(item.compatibleWith),
   };
 
+  // Flatten dynamic specs into explicit DB columns through a controlled map.
   const specs = item.specs ?? {};
   for (const [specKey, catalogField] of Object.entries(SPEC_FIELD_MAP)) {
     const rawValue = specs[specKey];
@@ -236,7 +240,12 @@ async function emitCatalogItemEvent(
 }
 
 function checkResource(req: Request, res: Response, next: NextFunction) {
-  if (req.path === "/health" || req.path === "/healthz") {
+  if (
+    req.path === "/health" ||
+    req.path === "/healthz" ||
+    req.path === "/openapi.json" ||
+    req.path.startsWith("/docs")
+  ) {
     return next();
   }
 
@@ -254,6 +263,8 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 }
 
 app.use(checkResource);
+app.get("/openapi.json", (_req, res) => res.status(200).json(openApiSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -276,7 +287,7 @@ type CatalogListRequest = {
   limit: number;
   offset: number;
   sort: CatalogSortOption | null;
-  simulatedDelayMs: number;
+  simulateDelayMs: number;
   filters: CatalogListFilters;
 };
 
@@ -352,11 +363,8 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[%_\\]/g, "\\$&");
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function parseCatalogListRequest(query: Request["query"]): CatalogListRequest {
+  // Support page-based and offset-based clients while keeping one canonical internal shape.
   const limit = Math.min(asPositiveInt(query.limit) ?? 50, 200);
   const offsetFromQuery = asNonNegativeInt(query.offset);
   const pageFromQuery = asPositiveInt(query.page);
@@ -370,7 +378,7 @@ function parseCatalogListRequest(query: Request["query"]): CatalogListRequest {
     limit,
     offset,
     sort: resolveSortOption(query.sort),
-    simulatedDelayMs: Math.min(asPositiveInt(query.simulateDelayMs) ?? 0, 3000),
+    simulateDelayMs: Math.min(asNonNegativeInt(query.simulateDelayMs) ?? 0, 3000),
     filters: {
       searchInput:
         asNonEmptyString(query.search) ?? asNonEmptyString(query.q) ?? null,
@@ -380,10 +388,15 @@ function parseCatalogListRequest(query: Request["query"]): CatalogListRequest {
   };
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function applyCatalogFilters(
   queryBuilder: SelectQueryBuilder<Catalog>,
   filters: CatalogListFilters,
 ): void {
+  // Escape LIKE wildcard characters to prevent accidental broad matches from user input.
   if (filters.searchInput) {
     const searchPattern = `%${escapeLikePattern(filters.searchInput)}%`;
     queryBuilder.andWhere(
@@ -473,12 +486,12 @@ function buildCatalogStatsQuery(
 }
 
 app.get("/", async (req: Request, res: Response) => {
-  const { page, limit, offset, sort, simulatedDelayMs, filters } =
+  const { page, limit, offset, sort, simulateDelayMs, filters } =
     parseCatalogListRequest(req.query);
 
   try {
-    if (simulatedDelayMs > 0) {
-      await sleep(simulatedDelayMs);
+    if (simulateDelayMs > 0) {
+      await delay(simulateDelayMs);
     }
 
     const { AppDataSource } = await import("./db/data-source");
@@ -707,6 +720,7 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
     parsedItems.push(parsed.item);
   }
 
+  // Keep first occurrence per id to make duplicate handling deterministic.
   const dedupedById = new Map<string, IncomingCatalogItem>();
   for (const item of parsedItems) {
     if (!dedupedById.has(item.id)) {
@@ -795,6 +809,7 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
           )
         : [];
 
+    // Emit catalog/category/supplier events asynchronously so DB write path is not blocked by event-bus latency.
     const eventsToEmit: Array<{ catalog: Catalog; eventName: CatalogEventName }> = [
       ...createdCatalogs.map((catalog) => ({
         catalog,
@@ -806,11 +821,15 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       })),
     ];
 
-    const eventRequests: Array<{ id: string; eventName: string; promise: Promise<void> }> =
+    const eventRequests: Array<{
+      id: string;
+      eventName: string;
+      request: () => Promise<void>;
+    }> =
       eventsToEmit.map(({ catalog, eventName }) => ({
         id: catalog.id,
         eventName,
-        promise: emitCatalogItemEvent(catalog, eventName, req.originalUrl || "/catalog/bulk"),
+        request: () => emitCatalogItemEvent(catalog, eventName, req.originalUrl || "/catalog/bulk"),
       }));
     for (const categoryName of categoryNames) {
       const eventName = existingCategoryNames.has(categoryName)
@@ -819,7 +838,8 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       eventRequests.push({
         id: categoryName,
         eventName,
-        promise: emitAfterWrite(eventName, { name: categoryName }, req.originalUrl || "/catalog/bulk"),
+        request: () =>
+          emitAfterWrite(eventName, { name: categoryName }, req.originalUrl || "/catalog/bulk"),
       });
     }
     for (const supplierName of supplierNames) {
@@ -829,37 +849,26 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       eventRequests.push({
         id: supplierName,
         eventName,
-        promise: emitAfterWrite(eventName, { name: supplierName }, req.originalUrl || "/catalog/bulk"),
+        request: () =>
+          emitAfterWrite(eventName, { name: supplierName }, req.originalUrl || "/catalog/bulk"),
       });
     }
 
-    const emitResults = await Promise.allSettled(eventRequests.map((entry) => entry.promise));
+    void Promise.allSettled(eventRequests.map((entry) => entry.request())).then((results) => {
+      for (let index = 0; index < results.length; index += 1) {
+        const result = results[index];
+        if (result?.status !== "rejected") {
+          continue;
+        }
 
-    const failedEvents: Array<{ id: string; eventName: string; reason: string }> = [];
-    for (let index = 0; index < emitResults.length; index += 1) {
-      const result = emitResults[index];
-      if (result.status !== "rejected") {
-        continue;
+        const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        console.error("Catalog bulk event emit failed", {
+          id: eventRequests[index]?.id ?? "unknown",
+          eventName: eventRequests[index]?.eventName ?? "unknown_event",
+          reason,
+        });
       }
-
-      failedEvents.push({
-        id: eventRequests[index]?.id ?? "unknown",
-        eventName: eventRequests[index]?.eventName ?? "unknown_event",
-        reason:
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason),
-      });
-    }
-
-    if (failedEvents.length > 0) {
-      return res.status(502).json({
-        message: "Catalog items were saved, but some events failed",
-        createdCount: createdCatalogs.length,
-        updatedCount: updatedCatalogs.length,
-        eventFailures: failedEvents,
-      });
-    }
+    });
 
     return res.status(201).json({
       createdCount: createdCatalogs.length,

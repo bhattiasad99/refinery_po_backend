@@ -2,8 +2,8 @@ import { eventHelpersProvider } from './services/event-helpers.provider';
 import express from "express";
 import { getRegisteredServices } from "./lib/service-registry";
 import { checkResource } from "./middleware/check-resource";
-import { recieveEventService } from "./services/recieve-event.service";
-import { incomingEventSchema } from "./schema/incoming-event.schema";
+import { receiveEventService } from "./services/receive-event.service";
+import { incomingEventSchema } from "./schemas/incoming-event.schema";
 import type { IncomingEvent, } from './types';
 import { getEvents } from './services/get-events.service';
 import { getFailedEvents } from './services/get-failed-events.service';
@@ -26,7 +26,7 @@ app.get("/sync", (_req, res) => {
   res.json(getRegisteredServices());
 });
 
-app.post("/events", async (req, res) => {
+app.post("/events", (req, res) => {
   const { value, error } = incomingEventSchema.validate(req.body, { abortEarly: true });
   if (error) {
     return res.status(400).json({ ok: false, message: error.details[0]?.message ?? "Invalid request body" });
@@ -39,16 +39,14 @@ app.post("/events", async (req, res) => {
     url: value.url.trim(),
   }
 
-  const { savedEvent, deliveryRows, successCount, failedCount } = await recieveEventService(modifiedValue);
+  // Return immediately and process delivery asynchronously to keep producer latency low.
+  void receiveEventService(modifiedValue).catch((serviceError) => {
+    console.error("Failed to process event in background", serviceError);
+  });
 
-  return res.status(201).json({
-    message: "Event stored and delivery attempted",
-    eventId: savedEvent.id,
-    delivery: {
-      total: deliveryRows.length,
-      success: successCount,
-      failed: failedCount,
-    },
+  return res.status(202).json({
+    message: "Event accepted for async processing",
+    accepted: true,
   });
 });
 
