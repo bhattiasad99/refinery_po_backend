@@ -7,15 +7,18 @@ import {
   parsePurchaseOrderId,
   parsePurchaseOrderWritePayload,
 } from "./schemas/purchase-order.schema";
-import { publishEvent } from "./services/event-publisher.service";
+import { emitAfterWrite } from "./services/event-publisher.service";
 import {
   buildCreatePurchaseOrderEventPayload,
   buildEditPurchaseOrderEventPayload,
 } from "./services/purchase-order-event-payload.service";
 import {
+  canTransitionPurchaseOrderStatus,
   createPurchaseOrder,
+  PURCHASE_ORDER_STATUS,
   updatePurchaseOrder,
   updatePurchaseOrderStatus,
+  validatePurchaseOrderForSubmission,
 } from "./services/purchase-order.service";
 import { processIncomingProjectionEvent } from "./services/projection.service";
 
@@ -42,6 +45,16 @@ function checkResource(req: Request, res: Response, next: NextFunction) {
 }
 
 app.use(checkResource);
+
+function resolveActor(req: Request): string | null {
+  const email = req.header("x-user-email")?.trim();
+  if (email) {
+    return email;
+  }
+
+  const userId = req.header("x-user-id")?.trim();
+  return userId || null;
+}
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/", async (_req, res) => {
@@ -99,7 +112,7 @@ app.post("/", async (req: Request, res: Response) => {
 
   try {
     const created = await createPurchaseOrder(parsedPayload.value);
-    await publishEvent(
+    await emitAfterWrite(
       "create_purchase_order",
       buildCreatePurchaseOrderEventPayload(created),
       `/${created.id}`,
@@ -135,13 +148,18 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
     if (!beforeUpdate) {
       return res.status(404).json({ message: "Purchase order not found" });
     }
+    if (beforeUpdate.status !== PURCHASE_ORDER_STATUS.DRAFT) {
+      return res.status(409).json({
+        message: "Only draft purchase orders can be edited",
+      });
+    }
 
     const updated = await updatePurchaseOrder(parsedId.value, parsedPayload.value);
     if (!updated) {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await publishEvent(
+    await emitAfterWrite(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -173,13 +191,28 @@ app.post("/:purchaseOrderId/submit", async (req: Request, res: Response) => {
     if (!beforeUpdate) {
       return res.status(404).json({ message: "Purchase order not found" });
     }
+    const nextStatus = PURCHASE_ORDER_STATUS.SUBMITTED;
+    if (!canTransitionPurchaseOrderStatus(beforeUpdate.status, nextStatus)) {
+      return res.status(409).json({
+        message: `Cannot transition purchase order from ${beforeUpdate.status} to ${nextStatus}`,
+      });
+    }
 
-    const updated = await updatePurchaseOrderStatus(parsedId.value, "SUBMITTED");
+    const submitValidationError = validatePurchaseOrderForSubmission(beforeUpdate);
+    if (submitValidationError) {
+      return res.status(400).json({ message: submitValidationError });
+    }
+
+    const updated = await updatePurchaseOrderStatus(
+      parsedId.value,
+      nextStatus,
+      resolveActor(req),
+    );
     if (!updated) {
       return res.status(404).json({ message: "Purchase order not found" });
     }
 
-    await publishEvent(
+    await emitAfterWrite(
       "edit_purchase_order",
       buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
       `/${updated.id}`,
@@ -189,6 +222,153 @@ app.post("/:purchaseOrderId/submit", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Failed to submit purchase order", error);
     return res.status(500).json({ message: "Failed to submit purchase order" });
+  }
+});
+
+app.post("/:purchaseOrderId/approve", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const beforeUpdate = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+    if (!beforeUpdate) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    const nextStatus = PURCHASE_ORDER_STATUS.APPROVED;
+    if (!canTransitionPurchaseOrderStatus(beforeUpdate.status, nextStatus)) {
+      return res.status(409).json({
+        message: `Cannot transition purchase order from ${beforeUpdate.status} to ${nextStatus}`,
+      });
+    }
+
+    const updated = await updatePurchaseOrderStatus(
+      parsedId.value,
+      nextStatus,
+      resolveActor(req),
+    );
+    if (!updated) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    await emitAfterWrite(
+      "edit_purchase_order",
+      buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
+      `/${updated.id}`,
+    );
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("Failed to approve purchase order", error);
+    return res.status(500).json({ message: "Failed to approve purchase order" });
+  }
+});
+
+app.post("/:purchaseOrderId/reject", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const beforeUpdate = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+    if (!beforeUpdate) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    const nextStatus = PURCHASE_ORDER_STATUS.REJECTED;
+    if (!canTransitionPurchaseOrderStatus(beforeUpdate.status, nextStatus)) {
+      return res.status(409).json({
+        message: `Cannot transition purchase order from ${beforeUpdate.status} to ${nextStatus}`,
+      });
+    }
+
+    const updated = await updatePurchaseOrderStatus(
+      parsedId.value,
+      nextStatus,
+      resolveActor(req),
+    );
+    if (!updated) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    await emitAfterWrite(
+      "edit_purchase_order",
+      buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
+      `/${updated.id}`,
+    );
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("Failed to reject purchase order", error);
+    return res.status(500).json({ message: "Failed to reject purchase order" });
+  }
+});
+
+app.post("/:purchaseOrderId/fulfill", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const beforeUpdate = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+    if (!beforeUpdate) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    const nextStatus = PURCHASE_ORDER_STATUS.FULFILLED;
+    if (!canTransitionPurchaseOrderStatus(beforeUpdate.status, nextStatus)) {
+      return res.status(409).json({
+        message: `Cannot transition purchase order from ${beforeUpdate.status} to ${nextStatus}`,
+      });
+    }
+
+    const updated = await updatePurchaseOrderStatus(
+      parsedId.value,
+      nextStatus,
+      resolveActor(req),
+    );
+    if (!updated) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    await emitAfterWrite(
+      "edit_purchase_order",
+      buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
+      `/${updated.id}`,
+    );
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("Failed to fulfill purchase order", error);
+    return res.status(500).json({ message: "Failed to fulfill purchase order" });
   }
 });
 

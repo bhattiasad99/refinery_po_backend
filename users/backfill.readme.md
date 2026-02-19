@@ -44,10 +44,12 @@ You will get:
 {
   "name": "user_created",
   "body": {
-    "userId": "<id>",
+    "id": "<id>",
     "email": "<email>",
     "departmentId": "<departmentId>",
-    "createdAt": "<created_at>"
+    "createdBy": "<created_by|null>",
+    "createdAt": "<created_at>",
+    "updatedAt": "<updated_at>"
   },
   "source": "users",
   "url": "http://.../back-fill/create_users"
@@ -80,20 +82,24 @@ await backfillProvider.ensureTrackingTable({
 const result = await backfillProvider.backfill<{
   id: string;
   name: string;
+  created_by: string | null;
   created_at: string | Date;
+  updated_at: string | Date;
 }>({
   sourceTable: "products",
   sourceIdColumn: "id",
-  sourceColumns: ["id", "name", "created_at"],
+  sourceColumns: ["id", "name", "created_by", "created_at", "updated_at"],
   trackingTable: "published_products",
   trackingIdColumn: "product_id",
   eventType: "product_created",
   eventSource: "catalog",
   eventUrl: "http://catalog:3000/back-fill/create_products",
   mapRowToPayload: (row) => ({
-    productId: row.id,
+    id: row.id,
     name: row.name,
+    createdBy: row.created_by,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   }),
   batchSize: 500,
 });

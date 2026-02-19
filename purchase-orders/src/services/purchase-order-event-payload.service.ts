@@ -25,7 +25,17 @@ type CollectionDiff<T> = {
 
 type PurchaseOrderSnapshot = {
   id: string;
+  createdAt: string;
+  updatedAt: string;
   status: string;
+  submittedAt: string | null;
+  submittedBy: string | null;
+  approvedAt: string | null;
+  approvedBy: string | null;
+  rejectedAt: string | null;
+  rejectedBy: string | null;
+  fulfilledAt: string | null;
+  fulfilledBy: string | null;
   requestedByDepartment: string | null;
   requestedByUser: string | null;
   budgetCode: string | null;
@@ -46,6 +56,9 @@ type PurchaseOrderSnapshot = {
   step5Tertiary: string | null;
   lineItems: Array<{
     id: string;
+    purchaseOrderId: string;
+    createdAt: string;
+    updatedAt: string;
     catalogItemId: string | null;
     item: string | null;
     supplier: string | null;
@@ -57,6 +70,9 @@ type PurchaseOrderSnapshot = {
   }>;
   milestones: Array<{
     id: string;
+    purchaseOrderId: string;
+    createdAt: string;
+    updatedAt: string;
     label: string | null;
     percentage: number | null;
     dueInDays: number | null;
@@ -65,7 +81,17 @@ type PurchaseOrderSnapshot = {
 };
 
 const SCALAR_KEYS: Array<keyof Omit<PurchaseOrderSnapshot, "id" | "lineItems" | "milestones">> = [
+  "createdAt",
+  "updatedAt",
   "status",
+  "submittedAt",
+  "submittedBy",
+  "approvedAt",
+  "approvedBy",
+  "rejectedAt",
+  "rejectedBy",
+  "fulfilledAt",
+  "fulfilledBy",
   "requestedByDepartment",
   "requestedByUser",
   "budgetCode",
@@ -89,6 +115,9 @@ const SCALAR_KEYS: Array<keyof Omit<PurchaseOrderSnapshot, "id" | "lineItems" | 
 function snapshotLineItem(item: PurchaseOrderLineItem): PurchaseOrderSnapshot["lineItems"][number] {
   return {
     id: item.id,
+    purchaseOrderId: item.purchaseOrderId,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
     catalogItemId: item.catalogItemId,
     item: item.item,
     supplier: item.supplier,
@@ -105,6 +134,9 @@ function snapshotMilestone(
 ): PurchaseOrderSnapshot["milestones"][number] {
   return {
     id: milestone.id,
+    purchaseOrderId: milestone.purchaseOrderId,
+    createdAt: milestone.createdAt.toISOString(),
+    updatedAt: milestone.updatedAt.toISOString(),
     label: milestone.label,
     percentage: milestone.percentage,
     dueInDays: milestone.dueInDays,
@@ -115,7 +147,17 @@ function snapshotMilestone(
 export function toPurchaseOrderSnapshot(entity: PurchaseOrder): PurchaseOrderSnapshot {
   return {
     id: entity.id,
+    createdAt: entity.createdAt.toISOString(),
+    updatedAt: entity.updatedAt.toISOString(),
     status: entity.status,
+    submittedAt: entity.submittedAt ? entity.submittedAt.toISOString() : null,
+    submittedBy: entity.submittedBy,
+    approvedAt: entity.approvedAt ? entity.approvedAt.toISOString() : null,
+    approvedBy: entity.approvedBy,
+    rejectedAt: entity.rejectedAt ? entity.rejectedAt.toISOString() : null,
+    rejectedBy: entity.rejectedBy,
+    fulfilledAt: entity.fulfilledAt ? entity.fulfilledAt.toISOString() : null,
+    fulfilledBy: entity.fulfilledBy,
     requestedByDepartment: entity.requestedByDepartment,
     requestedByUser: entity.requestedByUser,
     budgetCode: entity.budgetCode,
@@ -235,6 +277,9 @@ export function buildEditPurchaseOrderEventPayload(
     changes: {
       fields: buildScalarDiff(before, after),
       lineItems: buildCollectionDiff(before.lineItems, after.lineItems, [
+        "purchaseOrderId",
+        "createdAt",
+        "updatedAt",
         "catalogItemId",
         "item",
         "supplier",
@@ -245,6 +290,9 @@ export function buildEditPurchaseOrderEventPayload(
         "sortOrder",
       ]),
       milestones: buildCollectionDiff(before.milestones, after.milestones, [
+        "purchaseOrderId",
+        "createdAt",
+        "updatedAt",
         "label",
         "percentage",
         "dueInDays",

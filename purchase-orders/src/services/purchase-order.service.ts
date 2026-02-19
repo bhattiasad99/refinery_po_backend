@@ -6,6 +6,25 @@ import { PurchaseOrderPaymentMilestone } from "../entities/purchase-order-paymen
 import { PurchaseOrder } from "../entities/purchase-order.entity";
 import { PurchaseOrderWritePayload } from "../schemas/purchase-order.schema";
 
+export const PURCHASE_ORDER_STATUS = {
+  DRAFT: "DRAFT",
+  SUBMITTED: "SUBMITTED",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+  FULFILLED: "FULFILLED",
+} as const;
+
+export type PurchaseOrderStatus =
+  typeof PURCHASE_ORDER_STATUS[keyof typeof PURCHASE_ORDER_STATUS];
+
+const ALLOWED_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
+  DRAFT: [PURCHASE_ORDER_STATUS.SUBMITTED],
+  SUBMITTED: [PURCHASE_ORDER_STATUS.APPROVED, PURCHASE_ORDER_STATUS.REJECTED],
+  APPROVED: [PURCHASE_ORDER_STATUS.FULFILLED],
+  REJECTED: [],
+  FULFILLED: [],
+};
+
 function toNullableString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -39,6 +58,50 @@ function toNullableDate(value: unknown): string | null {
   }
 
   return date.toISOString().slice(0, 10);
+}
+
+export function getAllowedTransitions(status: string): PurchaseOrderStatus[] {
+  const normalized = String(status || "").toUpperCase() as PurchaseOrderStatus;
+  return ALLOWED_TRANSITIONS[normalized] ?? [];
+}
+
+export function canTransitionPurchaseOrderStatus(
+  fromStatus: string,
+  toStatus: PurchaseOrderStatus,
+): boolean {
+  return getAllowedTransitions(fromStatus).includes(toStatus);
+}
+
+export function validatePurchaseOrderForSubmission(purchaseOrder: PurchaseOrder): string | null {
+  if (!purchaseOrder.requestedByDepartment) {
+    return "Requested by department is required before submission";
+  }
+  if (!purchaseOrder.requestedByUser) {
+    return "Requested by user is required before submission";
+  }
+  if (!purchaseOrder.budgetCode) {
+    return "Budget code is required before submission";
+  }
+  if (!purchaseOrder.supplierName) {
+    return "Supplier name is required before submission";
+  }
+
+  const lineItems = purchaseOrder.lineItems ?? [];
+  if (lineItems.length === 0) {
+    return "At least one line item is required before submission";
+  }
+
+  const hasInvalidLineItem = lineItems.some((item) => {
+    const quantity = typeof item.quantity === "number" ? item.quantity : null;
+    const unitPrice = typeof item.unitPrice === "number" ? item.unitPrice : null;
+    return !item.item || quantity === null || quantity <= 0 || unitPrice === null || unitPrice < 0;
+  });
+
+  if (hasInvalidLineItem) {
+    return "Each line item must include name, quantity (>0), and unit price (>=0)";
+  }
+
+  return null;
 }
 
 function applyPayloadToPurchaseOrder(entity: PurchaseOrder, payload: PurchaseOrderWritePayload): void {
@@ -245,6 +308,14 @@ export async function createPurchaseOrder(payload: PurchaseOrderWritePayload): P
     const purchaseOrder = repository.create({
       id: randomUUID(),
       status: "DRAFT",
+      submittedAt: null,
+      submittedBy: null,
+      approvedAt: null,
+      approvedBy: null,
+      rejectedAt: null,
+      rejectedBy: null,
+      fulfilledAt: null,
+      fulfilledBy: null,
       requestedByDepartment: null,
       requestedByUser: null,
       budgetCode: null,
@@ -319,7 +390,8 @@ export async function updatePurchaseOrder(
 
 export async function updatePurchaseOrderStatus(
   purchaseOrderId: string,
-  status: string,
+  status: PurchaseOrderStatus,
+  actor: string | null = null,
 ): Promise<PurchaseOrder | null> {
   return AppDataSource.transaction(async (manager) => {
     const repository = manager.getRepository(PurchaseOrder);
@@ -332,6 +404,19 @@ export async function updatePurchaseOrderStatus(
     }
 
     existing.status = status;
+    if (status === PURCHASE_ORDER_STATUS.SUBMITTED) {
+      existing.submittedAt = new Date();
+      existing.submittedBy = actor;
+    } else if (status === PURCHASE_ORDER_STATUS.APPROVED) {
+      existing.approvedAt = new Date();
+      existing.approvedBy = actor;
+    } else if (status === PURCHASE_ORDER_STATUS.REJECTED) {
+      existing.rejectedAt = new Date();
+      existing.rejectedBy = actor;
+    } else if (status === PURCHASE_ORDER_STATUS.FULFILLED) {
+      existing.fulfilledAt = new Date();
+      existing.fulfilledBy = actor;
+    }
     await repository.save(existing);
 
     const full = await repository.findOneOrFail({

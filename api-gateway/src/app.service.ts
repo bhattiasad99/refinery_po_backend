@@ -4,6 +4,7 @@ import {
   HttpException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 
@@ -27,6 +28,19 @@ type AuthenticatedRequest = Request & {
     email: string;
     departmentId: string;
   };
+};
+
+type GlobalBulkRequest = {
+  catalogItems: unknown[];
+  runUserBackfill: boolean;
+};
+
+type GlobalBulkStepResult = {
+  step: 'catalog_bulk' | 'users_backfill_create_users';
+  ok: boolean;
+  status: number;
+  body: unknown;
+  message: string;
 };
 
 export const SERVICES: ServiceConfig[] = [
@@ -67,6 +81,51 @@ export class AppService {
     return {
       accepted: true,
       eventName: eventPayload.name,
+    };
+  }
+
+  async runGlobalBulk(
+    request: Request,
+    payload: unknown,
+  ): Promise<{
+    ok: boolean;
+    steps: GlobalBulkStepResult[];
+  }> {
+    const parsed = this.parseGlobalBulkRequest(payload);
+    const authRequest = request as AuthenticatedRequest;
+
+    if (!authRequest.user?.sub) {
+      throw new UnauthorizedException('Authenticated user context is required');
+    }
+
+    const headers = this.getForwardHeaders(request);
+    const steps: GlobalBulkStepResult[] = [];
+
+    steps.push(
+      await this.runBulkStep(
+        'catalog_bulk',
+        this.findServiceUrl('catalog'),
+        '/bulk',
+        headers,
+        parsed.catalogItems,
+      ),
+    );
+
+    if (parsed.runUserBackfill) {
+      steps.push(
+        await this.runBulkStep(
+          'users_backfill_create_users',
+          this.findServiceUrl('users'),
+          '/back-fill/create_users',
+          headers,
+          undefined,
+        ),
+      );
+    }
+
+    return {
+      ok: steps.every((step) => step.ok),
+      steps,
     };
   }
 
@@ -135,6 +194,68 @@ export class AppService {
     return {
       serviceName,
       restPath: restParts.length > 0 ? `/${restParts.join('/')}` : '/',
+    };
+  }
+
+  private parseGlobalBulkRequest(payload: unknown): GlobalBulkRequest {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new BadRequestException('global bulk payload must be a JSON object');
+    }
+
+    const input = payload as { catalogItems?: unknown; runUserBackfill?: unknown };
+    if (!Array.isArray(input.catalogItems)) {
+      throw new BadRequestException('catalogItems must be an array');
+    }
+
+    if (
+      input.runUserBackfill !== undefined &&
+      typeof input.runUserBackfill !== 'boolean'
+    ) {
+      throw new BadRequestException('runUserBackfill must be a boolean when provided');
+    }
+
+    return {
+      catalogItems: input.catalogItems,
+      runUserBackfill: input.runUserBackfill ?? true,
+    };
+  }
+
+  private async runBulkStep(
+    step: GlobalBulkStepResult['step'],
+    serviceUrl: string,
+    path: string,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Promise<GlobalBulkStepResult> {
+    const targetUrl = this.buildTargetUrl(serviceUrl, path, path);
+
+    let upstreamResponse: Response;
+    try {
+      upstreamResponse = await fetch(targetUrl, {
+        method: 'POST',
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        redirect: 'manual',
+      });
+    } catch {
+      return {
+        step,
+        ok: false,
+        status: 502,
+        body: null,
+        message: `Unable to reach service for step '${step}'`,
+      };
+    }
+
+    const parsedBody = await this.parseResponseBody(upstreamResponse);
+    return {
+      step,
+      ok: upstreamResponse.ok,
+      status: upstreamResponse.status,
+      body: parsedBody,
+      message:
+        this.extractMessage(parsedBody) ??
+        (upstreamResponse.ok ? 'Success' : `Step '${step}' failed`),
     };
   }
 

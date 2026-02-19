@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 
 describe('AppController', () => {
   let appController: AppController;
+  let appService: AppService;
 
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
@@ -12,6 +13,7 @@ describe('AppController', () => {
     }).compile();
 
     appController = app.get<AppController>(AppController);
+    appService = app.get<AppService>(AppService);
   });
 
   describe('health', () => {
@@ -43,6 +45,28 @@ describe('AppController', () => {
           eventName: 'purchase-order.created',
         },
         message: 'Event received',
+      });
+    });
+  });
+
+  describe('global bulk', () => {
+    it('should delegate to app service and return wrapped response', async () => {
+      jest.spyOn(appService, 'runGlobalBulk').mockResolvedValue({
+        ok: true,
+        steps: [],
+      });
+
+      await expect(
+        appController.runGlobalBulk(
+          { headers: {} } as never,
+          { catalogItems: [], runUserBackfill: true },
+        ),
+      ).resolves.toEqual({
+        body: {
+          ok: true,
+          steps: [],
+        },
+        message: 'Global bulk completed successfully',
       });
     });
   });

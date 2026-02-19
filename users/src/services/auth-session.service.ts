@@ -20,7 +20,7 @@ export async function createRefreshSession(input: {
   userId: string;
   tokenHash: string;
   expiresAt: Date;
-}): Promise<Result<{ sessionId: string }>> {
+}): Promise<Result<{ sessionId: string; session: RefreshSession }>> {
   const userRepository = AppDataSource.getRepository(User);
   const sessionRepository = AppDataSource.getRepository(RefreshSession);
 
@@ -39,14 +39,21 @@ export async function createRefreshSession(input: {
   });
 
   const saved = await sessionRepository.save(session);
-  return { ok: true, value: { sessionId: saved.id } };
+  return { ok: true, value: { sessionId: saved.id, session: saved } };
 }
 
 export async function rotateRefreshSession(input: {
   tokenHash: string;
   newTokenHash: string;
   expiresAt: Date;
-}): Promise<Result<{ user: PublicUser; sessionId: string }>> {
+}): Promise<
+  Result<{
+    user: PublicUser;
+    sessionId: string;
+    revokedSession: RefreshSession;
+    activeSession: RefreshSession;
+  }>
+> {
   const sessionRepository = AppDataSource.getRepository(RefreshSession);
   const userRepository = AppDataSource.getRepository(User);
 
@@ -88,13 +95,15 @@ export async function rotateRefreshSession(input: {
     value: {
       user: toPublicUser(user),
       sessionId: saved.id,
+      revokedSession: current,
+      activeSession: saved,
     },
   };
 }
 
 export async function revokeRefreshSession(input: {
   tokenHash: string;
-}): Promise<Result<{ revoked: boolean }>> {
+}): Promise<Result<{ revoked: boolean; session: RefreshSession | null }>> {
   const sessionRepository = AppDataSource.getRepository(RefreshSession);
 
   const session = await sessionRepository.findOne({
@@ -102,7 +111,7 @@ export async function revokeRefreshSession(input: {
   });
 
   if (!session) {
-    return { ok: true, value: { revoked: false } };
+    return { ok: true, value: { revoked: false, session: null } };
   }
 
   if (!session.revokedAt) {
@@ -112,5 +121,5 @@ export async function revokeRefreshSession(input: {
     await sessionRepository.save(session);
   }
 
-  return { ok: true, value: { revoked: true } };
+  return { ok: true, value: { revoked: true, session } };
 }

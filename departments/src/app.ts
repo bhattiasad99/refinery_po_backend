@@ -3,9 +3,9 @@ import type { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "./db/data-source";
 import { Department } from "./entities/department.entity";
 import { createDepartmentSchema } from "./schemas/create-department.schema";
+import { emitAfterWrite } from "./services/emit-after-write.service";
 
 export const app = express();
-const SERVICE_NAME = "departments";
 
 app.use(express.json());
 
@@ -52,52 +52,6 @@ app.get("/", async (_req: Request, res: Response) => {
   }
 });
 
-async function emitCreateDepartmentEvent(
-  department: Department,
-  requestPath: string,
-): Promise<void> {
-  const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
-  if (!eventBusUrl) {
-    console.warn(
-      `Service: ${SERVICE_NAME} - SERVICE_EVENT_BUS_URL is not set; skipping create_department event`,
-    );
-    return;
-  }
-
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
-  if (internalServiceKey) {
-    headers["x-internal-key"] = internalServiceKey;
-  }
-
-  const eventPayload = {
-    name: "create_department",
-    body: {
-      id: department.id,
-      name: department.name,
-      description: department.description,
-      createdAt: department.createdAt,
-      updatedAt: department.updatedAt,
-    },
-    source: SERVICE_NAME,
-    url: requestPath,
-  };
-
-  const response = await fetch(`${eventBusUrl}/events`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(eventPayload),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Event bus returned ${response.status} while emitting create_department`,
-    );
-  }
-}
-
 app.post("/", async (req: Request, res: Response) => {
   const { value, error } = createDepartmentSchema.validate(req.body, {
     abortEarly: false,
@@ -126,7 +80,7 @@ app.post("/", async (req: Request, res: Response) => {
       description: value.description,
     });
     const savedDepartment = await repository.save(department);
-    void emitCreateDepartmentEvent(savedDepartment, req.originalUrl || "/").catch(
+    void emitAfterWrite("create_department", savedDepartment, req.originalUrl || "/").catch(
       (eventError) => {
         console.warn("Failed to emit create_department event", eventError);
       },

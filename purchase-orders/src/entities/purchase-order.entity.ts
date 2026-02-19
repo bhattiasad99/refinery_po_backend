@@ -18,6 +18,30 @@ export class PurchaseOrder {
   @Column({ type: "varchar", length: 40, default: "DRAFT" })
   status!: string;
 
+  @Column({ name: "submitted_at", type: "timestamptz", nullable: true })
+  submittedAt!: Date | null;
+
+  @Column({ name: "submitted_by", type: "varchar", length: 200, nullable: true })
+  submittedBy!: string | null;
+
+  @Column({ name: "approved_at", type: "timestamptz", nullable: true })
+  approvedAt!: Date | null;
+
+  @Column({ name: "approved_by", type: "varchar", length: 200, nullable: true })
+  approvedBy!: string | null;
+
+  @Column({ name: "rejected_at", type: "timestamptz", nullable: true })
+  rejectedAt!: Date | null;
+
+  @Column({ name: "rejected_by", type: "varchar", length: 200, nullable: true })
+  rejectedBy!: string | null;
+
+  @Column({ name: "fulfilled_at", type: "timestamptz", nullable: true })
+  fulfilledAt!: Date | null;
+
+  @Column({ name: "fulfilled_by", type: "varchar", length: 200, nullable: true })
+  fulfilledBy!: string | null;
+
   @Column({ name: "requested_by_department", type: "varchar", length: 160, nullable: true })
   requestedByDepartment!: string | null;
 

@@ -6,6 +6,7 @@ import { parseGetUserQuery } from "./schemas/get-user.schema";
 import { parseIncomingEvent } from "./schemas/incoming-event.schema";
 import { parseVerifyCredentialsInput } from "./schemas/verify-credentials.schema";
 import { backfillProvider } from "./services/backfill.provider";
+import { emitAfterWrite } from "./services/emit-after-write.service";
 import {
   createRefreshSession,
   revokeRefreshSession,
@@ -106,6 +107,8 @@ app.post("/", async (req: Request, res: Response) => {
       return res.status(result.status).json({ message: result.message });
     }
 
+    await emitAfterWrite("user_created", result.value, req.originalUrl || "/");
+
     return res.status(201).json({
       id: result.value.id,
       email: result.value.email,
@@ -171,7 +174,12 @@ app.post("/auth/sessions", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.message });
     }
-    return res.status(201).json(result.value);
+    await emitAfterWrite(
+      "refresh_session_created",
+      result.value.session,
+      req.originalUrl || "/auth/sessions",
+    );
+    return res.status(201).json({ sessionId: result.value.sessionId });
   } catch (error) {
     console.error("Failed to create refresh session", error);
     return res.status(500).json({ message: "Failed to create refresh session" });
@@ -200,7 +208,18 @@ app.post("/auth/sessions/rotate", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.message });
     }
-    return res.status(200).json(result.value);
+    await emitAfterWrite(
+      "refresh_session_rotated",
+      {
+        revokedSession: result.value.revokedSession,
+        activeSession: result.value.activeSession,
+      },
+      req.originalUrl || "/auth/sessions/rotate",
+    );
+    return res.status(200).json({
+      user: result.value.user,
+      sessionId: result.value.sessionId,
+    });
   } catch (error) {
     console.error("Failed to rotate refresh session", error);
     return res.status(500).json({ message: "Failed to rotate refresh session" });
@@ -220,7 +239,14 @@ app.post("/auth/sessions/revoke", async (req: Request, res: Response) => {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.message });
     }
-    return res.status(200).json(result.value);
+    if (result.value.session) {
+      await emitAfterWrite(
+        "refresh_session_revoked",
+        result.value.session,
+        req.originalUrl || "/auth/sessions/revoke",
+      );
+    }
+    return res.status(200).json({ revoked: result.value.revoked });
   } catch (error) {
     console.error("Failed to revoke refresh session", error);
     return res.status(500).json({ message: "Failed to revoke refresh session" });
@@ -242,21 +268,25 @@ app.post("/back-fill/create_users", async (_req: Request, res: Response) => {
       id: string;
       email: string;
       department_id: string;
+      created_by: string | null;
       created_at: string | Date;
+      updated_at: string | Date;
     }>({
       sourceTable: "users",
       sourceIdColumn: "id",
-      sourceColumns: ["id", "email", "department_id", "created_at"],
+      sourceColumns: ["id", "email", "department_id", "created_by", "created_at", "updated_at"],
       trackingTable: "published_users",
       trackingIdColumn: "user_id",
       eventType: "user_created",
       eventSource: "users",
       eventUrl,
       mapRowToPayload: (row) => ({
-        userId: row.id,
+        id: row.id,
         email: row.email,
         departmentId: row.department_id,
+        createdBy: row.created_by,
         createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+        updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
       }),
       batchSize: 500,
     });

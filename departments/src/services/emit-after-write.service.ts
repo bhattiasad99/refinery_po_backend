@@ -1,4 +1,4 @@
-type EventPayload = unknown;
+const SERVICE_NAME = "departments";
 const EXCLUDED_EVENT_FIELDS = new Set(["password", "passwordHash"]);
 
 function sanitizeEventBody(value: unknown): unknown {
@@ -21,30 +21,15 @@ function sanitizeEventBody(value: unknown): unknown {
   return output;
 }
 
-function buildServiceUrl(path: string): string {
-  const explicitUrl = process.env.SERVICE_PURCHASE_ORDERS_URL?.trim();
-  if (explicitUrl) {
-    return `${explicitUrl.replace(/\/+$/, "")}${path}`;
-  }
-
-  const port = process.env.PURCHASE_ORDERS_PORT?.trim() || "3000";
-  return `http://purchase-orders:${port}${path}`;
-}
-
-export async function emitAfterWrite(
-  name: string,
-  payload: EventPayload,
-  urlPath: string,
-): Promise<void> {
+export async function emitAfterWrite(name: string, body: unknown, url: string): Promise<void> {
   const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
   if (!eventBusUrl) {
     throw new Error("SERVICE_EVENT_BUS_URL is not set");
   }
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    "content-type": "application/json",
   };
-
   const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
   if (internalServiceKey) {
     headers["x-internal-key"] = internalServiceKey;
@@ -55,15 +40,13 @@ export async function emitAfterWrite(
     headers,
     body: JSON.stringify({
       name,
-      body: sanitizeEventBody(payload),
-      source: "purchase-orders",
-      url: buildServiceUrl(urlPath),
+      body: sanitizeEventBody(body),
+      source: SERVICE_NAME,
+      url,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Event bus responded with status ${response.status}`);
+    throw new Error(`Event bus returned ${response.status} while emitting ${name}`);
   }
 }
-
-export const publishEvent = emitAfterWrite;

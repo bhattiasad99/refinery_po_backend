@@ -4,9 +4,9 @@ import { In, SelectQueryBuilder } from "typeorm";
 import { Catalog } from "./entities/catalog.entity";
 import { Category } from "./entities/category.entity";
 import { Supplier } from "./entities/supplier.entity";
+import { emitAfterWrite } from "./services/emit-after-write.service";
 
 export const app = express();
-const SERVICE_NAME = "catalog";
 
 app.use(express.json());
 
@@ -227,58 +227,12 @@ function mapToCatalogEntity(item: IncomingCatalogItem, createdBy: string): Catal
   return payload as Catalog;
 }
 
-function buildEventBody(catalog: Catalog): Record<string, unknown> {
-  return {
-    id: catalog.id,
-    name: catalog.name,
-    category: catalog.categoryName,
-    supplier: catalog.supplierName,
-    manufacturer: catalog.manufacturer,
-    model: catalog.model,
-    description: catalog.description,
-    leadTimeDays: catalog.leadTimeDays,
-    priceUsd: catalog.priceUsd,
-    inStock: catalog.inStock,
-    createdBy: catalog.createdBy,
-    compatibleWith: catalog.compatibleWith ?? [],
-  };
-}
-
 async function emitCatalogItemEvent(
   catalog: Catalog,
   eventName: CatalogEventName,
   requestPath: string,
 ): Promise<void> {
-  const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
-  if (!eventBusUrl) {
-    throw new Error("SERVICE_EVENT_BUS_URL is not set");
-  }
-
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-
-  const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
-  if (internalServiceKey) {
-    headers["x-internal-key"] = internalServiceKey;
-  }
-
-  const eventPayload = {
-    name: eventName,
-    body: buildEventBody(catalog),
-    source: SERVICE_NAME,
-    url: requestPath,
-  };
-
-  const response = await fetch(`${eventBusUrl}/events`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(eventPayload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Event bus returned ${response.status} while emitting ${eventName}`);
-  }
+  await emitAfterWrite(eventName, catalog, requestPath);
 }
 
 function checkResource(req: Request, res: Response, next: NextFunction) {
@@ -562,6 +516,11 @@ type SuppliersListRequest = {
   searchInput: string | null;
 };
 
+type CatalogFilterOptionsResponse = {
+  categories: string[];
+  suppliers: string[];
+};
+
 function parseSuppliersListRequest(query: Request["query"]): SuppliersListRequest {
   const limit = Math.min(asPositiveInt(query.limit) ?? 10, 100);
   const offsetFromQuery = asNonNegativeInt(query.offset);
@@ -579,6 +538,46 @@ function parseSuppliersListRequest(query: Request["query"]): SuppliersListReques
       asNonEmptyString(query.search) ?? asNonEmptyString(query.q) ?? null,
   };
 }
+
+function normalizeDistinctNameRows(
+  rows: Array<{ value: string | null }>,
+): string[] {
+  return rows
+    .map((row) => asNonEmptyString(row.value))
+    .filter((entry): entry is string => entry !== null);
+}
+
+app.get("/filters", async (_req: Request, res: Response) => {
+  try {
+    const { AppDataSource } = await import("./db/data-source");
+    const repository = AppDataSource.getRepository(Catalog);
+
+    const [categoriesRaw, suppliersRaw] = await Promise.all([
+      repository
+        .createQueryBuilder("catalog")
+        .select("catalog.category_name", "value")
+        .distinct(true)
+        .orderBy("catalog.category_name", "ASC")
+        .getRawMany<{ value: string | null }>(),
+      repository
+        .createQueryBuilder("catalog")
+        .select("catalog.supplier_name", "value")
+        .distinct(true)
+        .orderBy("catalog.supplier_name", "ASC")
+        .getRawMany<{ value: string | null }>(),
+    ]);
+
+    const payload: CatalogFilterOptionsResponse = {
+      categories: normalizeDistinctNameRows(categoriesRaw),
+      suppliers: normalizeDistinctNameRows(suppliersRaw),
+    };
+
+    return res.status(200).json(payload);
+  } catch (error) {
+    console.error("Failed to fetch catalog filter options", error);
+    return res.status(500).json({ message: "Failed to fetch catalog filter options" });
+  }
+});
 
 app.get("/suppliers", async (req: Request, res: Response) => {
   const { page, limit, offset, searchInput } = parseSuppliersListRequest(req.query);
@@ -725,6 +724,23 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
     const categoryNames = [...new Set(uniqueItems.map((item) => item.category))];
     const supplierNames = [...new Set(uniqueItems.map((item) => item.supplier))];
 
+    const existingCategories =
+      categoryNames.length > 0
+        ? await categoryRepository.find({
+            select: { name: true },
+            where: { name: In(categoryNames) },
+          })
+        : [];
+    const existingSuppliers =
+      supplierNames.length > 0
+        ? await supplierRepository.find({
+            select: { name: true },
+            where: { name: In(supplierNames) },
+          })
+        : [];
+    const existingCategoryNames = new Set(existingCategories.map((entry) => entry.name));
+    const existingSupplierNames = new Set(existingSuppliers.map((entry) => entry.name));
+
     if (categoryNames.length > 0) {
       await categoryRepository.upsert(
         categoryNames.map((name) => ({ name })),
@@ -790,13 +806,36 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       })),
     ];
 
-    const emitResults = await Promise.allSettled(
-      eventsToEmit.map(({ catalog, eventName }) =>
-        emitCatalogItemEvent(catalog, eventName, req.originalUrl || "/catalog/bulk"),
-      ),
-    );
+    const eventRequests: Array<{ id: string; eventName: string; promise: Promise<void> }> =
+      eventsToEmit.map(({ catalog, eventName }) => ({
+        id: catalog.id,
+        eventName,
+        promise: emitCatalogItemEvent(catalog, eventName, req.originalUrl || "/catalog/bulk"),
+      }));
+    for (const categoryName of categoryNames) {
+      const eventName = existingCategoryNames.has(categoryName)
+        ? "edit_category"
+        : "create_category";
+      eventRequests.push({
+        id: categoryName,
+        eventName,
+        promise: emitAfterWrite(eventName, { name: categoryName }, req.originalUrl || "/catalog/bulk"),
+      });
+    }
+    for (const supplierName of supplierNames) {
+      const eventName = existingSupplierNames.has(supplierName)
+        ? "edit_supplier"
+        : "create_supplier";
+      eventRequests.push({
+        id: supplierName,
+        eventName,
+        promise: emitAfterWrite(eventName, { name: supplierName }, req.originalUrl || "/catalog/bulk"),
+      });
+    }
 
-    const failedEvents: Array<{ id: string; eventName: CatalogEventName; reason: string }> = [];
+    const emitResults = await Promise.allSettled(eventRequests.map((entry) => entry.promise));
+
+    const failedEvents: Array<{ id: string; eventName: string; reason: string }> = [];
     for (let index = 0; index < emitResults.length; index += 1) {
       const result = emitResults[index];
       if (result.status !== "rejected") {
@@ -804,8 +843,8 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       }
 
       failedEvents.push({
-        id: eventsToEmit[index]?.catalog.id ?? "unknown",
-        eventName: eventsToEmit[index]?.eventName ?? "create_catalog_item",
+        id: eventRequests[index]?.id ?? "unknown",
+        eventName: eventRequests[index]?.eventName ?? "unknown_event",
         reason:
           result.reason instanceof Error
             ? result.reason.message
@@ -826,7 +865,14 @@ async function handleBulkCreateCatalogItems(req: Request, res: Response) {
       createdCount: createdCatalogs.length,
       updatedCount: updatedCatalogs.length,
       duplicateIdsInPayload: parsedItems.length - uniqueItems.length,
-      emittedEventNames: ["create_catalog_item", "edit_catalog_item"],
+      emittedEventNames: [
+        "create_catalog_item",
+        "edit_catalog_item",
+        "create_category",
+        "edit_category",
+        "create_supplier",
+        "edit_supplier",
+      ],
     });
   } catch (error) {
     console.error("Failed to bulk create catalog items", error);

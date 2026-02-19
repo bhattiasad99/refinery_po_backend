@@ -1,4 +1,5 @@
 import { AppDataSource } from "../db/data-source";
+import { emitAfterWrite } from "./emit-after-write.service";
 
 type RowData = Record<string, unknown>;
 
@@ -33,42 +34,6 @@ function quoteIdentifier(identifier: string): string {
     throw new Error(`Invalid SQL identifier: ${identifier}`);
   }
   return `"${identifier}"`;
-}
-
-export async function publishEvent(
-  type: string,
-  payload: Record<string, unknown>,
-  source: string,
-  url: string,
-): Promise<void> {
-  const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
-  if (!eventBusUrl) {
-    throw new Error("SERVICE_EVENT_BUS_URL is not set");
-  }
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
-  if (internalServiceKey) {
-    headers["x-internal-key"] = internalServiceKey;
-  }
-
-  const response = await fetch(`${eventBusUrl}/events`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      name: type,
-      body: payload,
-      source,
-      url,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Event bus responded with status ${response.status}`);
-  }
 }
 
 class BackfillProvider {
@@ -147,11 +112,11 @@ class BackfillProvider {
             continue;
           }
 
-          await publishEvent(
+          await emitAfterWrite(
             config.eventType,
             config.mapRowToPayload(row),
-            config.eventSource,
             config.eventUrl,
+            config.eventSource,
           );
           summary.published += 1;
         } catch (error) {
