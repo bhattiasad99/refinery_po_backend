@@ -316,3 +316,33 @@ export async function updatePurchaseOrder(
     return full;
   });
 }
+
+export async function updatePurchaseOrderStatus(
+  purchaseOrderId: string,
+  status: string,
+): Promise<PurchaseOrder | null> {
+  return AppDataSource.transaction(async (manager) => {
+    const repository = manager.getRepository(PurchaseOrder);
+    const existing = await repository.findOne({
+      where: { id: purchaseOrderId },
+    });
+
+    if (!existing) {
+      return null;
+    }
+
+    existing.status = status;
+    await repository.save(existing);
+
+    const full = await repository.findOneOrFail({
+      where: { id: purchaseOrderId },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+
+    return full;
+  });
+}

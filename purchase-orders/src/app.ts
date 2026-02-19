@@ -12,7 +12,11 @@ import {
   buildCreatePurchaseOrderEventPayload,
   buildEditPurchaseOrderEventPayload,
 } from "./services/purchase-order-event-payload.service";
-import { createPurchaseOrder, updatePurchaseOrder } from "./services/purchase-order.service";
+import {
+  createPurchaseOrder,
+  updatePurchaseOrder,
+  updatePurchaseOrderStatus,
+} from "./services/purchase-order.service";
 import { processIncomingProjectionEvent } from "./services/projection.service";
 
 export const app = express();
@@ -147,6 +151,44 @@ app.put("/:purchaseOrderId", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Failed to update purchase order", error);
     return res.status(500).json({ message: "Failed to update purchase order" });
+  }
+});
+
+app.post("/:purchaseOrderId/submit", async (req: Request, res: Response) => {
+  const parsedId = parsePurchaseOrderId(req.params.purchaseOrderId);
+  if (!parsedId.ok) {
+    return res.status(400).json({ message: parsedId.message });
+  }
+
+  try {
+    const repository = AppDataSource.getRepository(PurchaseOrder);
+    const beforeUpdate = await repository.findOne({
+      where: { id: parsedId.value },
+      relations: ["lineItems", "milestones"],
+      order: {
+        lineItems: { sortOrder: "ASC" },
+        milestones: { sortOrder: "ASC" },
+      },
+    });
+    if (!beforeUpdate) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    const updated = await updatePurchaseOrderStatus(parsedId.value, "SUBMITTED");
+    if (!updated) {
+      return res.status(404).json({ message: "Purchase order not found" });
+    }
+
+    await publishEvent(
+      "edit_purchase_order",
+      buildEditPurchaseOrderEventPayload(beforeUpdate, updated),
+      `/${updated.id}`,
+    );
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error("Failed to submit purchase order", error);
+    return res.status(500).json({ message: "Failed to submit purchase order" });
   }
 });
 
