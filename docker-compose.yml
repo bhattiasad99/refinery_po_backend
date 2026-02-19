@@ -20,6 +20,7 @@ services:
       SERVICE_PURCHASE_ORDERS_URL: http://purchase-orders:8003
       SERVICE_EVENT_BUS_URL: http://event-bus:8001
       SERVICE_DEPARTMENTS_URL: http://departments:8004
+      SERVICE_USERS_URL: http://users:8005
     command: npm run start:dev
     healthcheck:
       test:
@@ -44,6 +45,8 @@ services:
       event-bus:
         condition: service_healthy
       departments:
+        condition: service_healthy
+      users:
         condition: service_healthy
 
   catalog:
@@ -143,6 +146,7 @@ services:
       SERVICE_CATALOG_URL: http://catalog:8002
       SERVICE_PURCHASE_ORDERS_URL: http://purchase-orders:8003
       SERVICE_DEPARTMENTS_URL: http://departments:8004
+      SERVICE_USERS_URL: http://users:8005
     command: npm run dev
     healthcheck:
       test:
@@ -193,6 +197,44 @@ services:
       - "${DEPARTMENTS_PORT}:${DEPARTMENTS_PORT}"
     volumes:
       - ./departments:/app
+      - /app/node_modules
+    depends_on:
+      event-bus:
+        condition: service_healthy
+
+  users:
+    build:
+      context: ./users
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - ./.env.local
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: UsePolling
+      USERS_PORT: ${USERS_PORT}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      USERS_DATABASE_URL: ${USERS_DATABASE_URL}
+      SERVICE_EVENT_BUS_URL: http://event-bus:8001
+    command: npm run dev
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:' + (process.env.USERS_PORT || 3000) + '/health').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    ports:
+      - "${USERS_PORT}:${USERS_PORT}"
+    volumes:
+      - ./users:/app
       - /app/node_modules
     depends_on:
       event-bus:

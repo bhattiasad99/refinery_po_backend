@@ -38,6 +38,10 @@ const SERVICES: ServiceConfig[] = [
     serviceName: 'departments',
     url: process.env.SERVICE_DEPARTMENTS_URL?.trim() as string,
   },
+  {
+    serviceName: 'users',
+    url: process.env.SERVICE_USERS_URL?.trim() as string,
+  },
 ];
 
 @Injectable()

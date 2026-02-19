@@ -17,5 +17,9 @@ export function getRegisteredServices(): RegisteredService[] {
       name: "purchase-orders",
       url: process.env.SERVICE_PURCHASE_ORDERS_URL as string,
     },
+    {
+      name: "users",
+      url: process.env.SERVICE_USERS_URL as string,
+    }
   ];
 }
