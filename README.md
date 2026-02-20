@@ -1,5 +1,7 @@
 # Refinery PO Backend
 
+> **[View API Specifications & Documentation](./api-specifications.md)**
+
 ## Table of Contents
 
 - [Assignment Checklist](#assignment-checklist-document-date-2026-02-12)
