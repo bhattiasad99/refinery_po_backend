@@ -1,5 +1,26 @@
 # Refinery PO Backend
 
+## Table of Contents
+
+- [Assignment Checklist](#assignment-checklist-document-date-2026-02-12)
+- [Why This Backend Stands Out](#why-this-backend-stands-out)
+- [System Architecture](#system-architecture)
+- [Event Pipeline (Publish/Subscribe)](#event-pipeline-publishsubscribe)
+- [Design Patterns Used](#design-patterns-used)
+- [Purchase Order Lifecycle (Domain Flow)](#purchase-order-lifecycle-domain-flow)
+- [Service Map](#service-map)
+- [Deployed Services (Render + NeonDB)](#deployed-services-render--neondb)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [API Docs](#api-docs)
+- [Auth Flow (Gateway + Users)](#auth-flow-gateway--users)
+- [Projection Sync and Replay](#projection-sync-and-replay)
+- [Local Monorepo Structure](#local-monorepo-structure)
+- [Development Scripts](#development-scripts)
+- [Engineering Notes](#engineering-notes)
+- [Production Readiness Checklist](#production-readiness-checklist)
+- [Related Docs](#related-docs)
+
 ## Assignment Checklist (Document Date: 2026-02-12)
 
 ### Architecture Requirements
