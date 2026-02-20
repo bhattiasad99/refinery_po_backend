@@ -49,6 +49,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message = exception.message || message;
     }
 
+    // Gateway-wide fallback: normalize upstream bad-gateway outcomes to service-unavailable.
+    if (status === HttpStatus.BAD_GATEWAY) {
+      status = HttpStatus.SERVICE_UNAVAILABLE;
+      retryAfterSeconds = retryAfterSeconds ?? 2;
+      if (!message || message === 'Bad Gateway') {
+        message = 'Upstream service is temporarily unavailable. Please retry shortly.';
+      }
+    }
+
     if (retryAfterSeconds && status === HttpStatus.SERVICE_UNAVAILABLE) {
       response.setHeader('Retry-After', String(retryAfterSeconds));
     }
