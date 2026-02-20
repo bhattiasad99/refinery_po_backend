@@ -16,6 +16,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let body: unknown = null;
     let message = 'Internal server error';
+    let retryAfterSeconds: number | null = null;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -24,8 +25,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       if (typeof httpResponse === 'string') {
         message = httpResponse;
       } else if (httpResponse && typeof httpResponse === 'object') {
-        const parsed = httpResponse as { message?: unknown; body?: unknown };
+        const parsed = httpResponse as {
+          message?: unknown;
+          body?: unknown;
+          retryAfterSeconds?: unknown;
+        };
         body = 'body' in parsed ? parsed.body : null;
+        if (typeof parsed.retryAfterSeconds === 'number') {
+          retryAfterSeconds = parsed.retryAfterSeconds;
+        }
 
         if (Array.isArray(parsed.message)) {
           message = parsed.message.join(', ');
@@ -39,6 +47,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       message = exception.message || message;
+    }
+
+    if (retryAfterSeconds && status === HttpStatus.SERVICE_UNAVAILABLE) {
+      response.setHeader('Retry-After', String(retryAfterSeconds));
     }
 
     response.status(status).json({

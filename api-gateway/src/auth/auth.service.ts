@@ -1,8 +1,8 @@
 import {
-  BadGatewayException,
   HttpException,
   Injectable,
   InternalServerErrorException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
@@ -244,9 +244,10 @@ export class AuthService {
           await this.sleep(this.getRetryDelayMs(attempt));
           continue;
         }
-        throw new BadGatewayException({
-          message: "Unable to reach service 'users'",
+        throw new ServiceUnavailableException({
+          message: "Service 'users' is temporarily unavailable. Please retry shortly.",
           body: null,
+          retryAfterSeconds: 2,
         });
       }
 
@@ -257,11 +258,18 @@ export class AuthService {
       }
 
       if (
-        attempt < retryAttempts &&
         this.isTransientUpstreamStatus(upstream.status)
       ) {
-        await this.sleep(this.getRetryDelayMs(attempt));
-        continue;
+        if (attempt < retryAttempts) {
+          await this.sleep(this.getRetryDelayMs(attempt));
+          continue;
+        }
+
+        throw new ServiceUnavailableException({
+          message: "Service 'users' is temporarily unavailable. Please retry shortly.",
+          body: parsedBody,
+          retryAfterSeconds: 2,
+        });
       }
 
       const responseBody = parsedBody as UpstreamErrorBody | null;
@@ -274,9 +282,10 @@ export class AuthService {
       );
     }
 
-    throw new BadGatewayException({
-      message: "Unable to reach service 'users'",
+    throw new ServiceUnavailableException({
+      message: "Service 'users' is temporarily unavailable. Please retry shortly.",
       body: null,
+      retryAfterSeconds: 2,
     });
   }
 

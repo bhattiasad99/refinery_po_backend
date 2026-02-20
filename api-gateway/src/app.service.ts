@@ -1,9 +1,9 @@
 import {
-  BadGatewayException,
   BadRequestException,
   HttpException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -151,9 +151,10 @@ export class AppService {
         redirect: 'manual',
       });
     } catch {
-      throw new BadGatewayException({
-        message: `Unable to reach service '${serviceName}'`,
+      throw new ServiceUnavailableException({
+        message: `Service '${serviceName}' is temporarily unavailable. Please retry shortly.`,
         body: null,
+        retryAfterSeconds: 2,
       });
     }
 
@@ -241,9 +242,9 @@ export class AppService {
       return {
         step,
         ok: false,
-        status: 502,
+        status: 503,
         body: null,
-        message: `Unable to reach service for step '${step}'`,
+        message: `Service for step '${step}' is temporarily unavailable. Please retry shortly.`,
       };
     }
 
