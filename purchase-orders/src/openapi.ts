@@ -46,7 +46,6 @@ const purchaseOrderSchema = {
       type: "string",
       enum: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "FULFILLED"],
     },
-    poNumber: { type: "string", nullable: true },
     submittedAt: { type: "string", format: "date-time", nullable: true },
     submittedBy: { type: "string", nullable: true },
     approvedAt: { type: "string", format: "date-time", nullable: true },

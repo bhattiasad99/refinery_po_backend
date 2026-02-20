@@ -110,7 +110,7 @@ function formatPurchaseOrderNumber(date: Date, sequence: number): string {
 }
 
 async function getNextPurchaseOrderSequence(manager: EntityManager, date: Date): Promise<number> {
-  // Atomic increment per UTC day to avoid duplicate PO numbers under concurrent submissions.
+  // Atomic increment per UTC day to avoid duplicate IDs under concurrent creation.
   const counterDate = toUtcCounterDate(date);
   const counterRepository = manager.getRepository(PurchaseOrderNumberCounter);
 
@@ -127,24 +127,10 @@ async function getNextPurchaseOrderSequence(manager: EntityManager, date: Date):
 
   const sequence = Number(upsertResult?.[0]?.last_value);
   if (!Number.isFinite(sequence) || sequence <= 0) {
-    throw new Error("Failed to generate purchase order number sequence");
+    throw new Error("Failed to generate purchase order id sequence");
   }
 
   return Math.floor(sequence);
-}
-
-async function assignPurchaseOrderNumberIfMissing(
-  manager: EntityManager,
-  purchaseOrder: PurchaseOrder,
-  now: Date,
-): Promise<void> {
-  // Preserve existing numbers on re-submission/update; only assign once.
-  if (purchaseOrder.poNumber) {
-    return;
-  }
-
-  const nextSequence = await getNextPurchaseOrderSequence(manager, now);
-  purchaseOrder.poNumber = formatPurchaseOrderNumber(now, nextSequence);
 }
 
 async function recordStatusTransition(
@@ -416,9 +402,8 @@ export async function createPurchaseOrder(payload: PurchaseOrderWritePayload): P
   return AppDataSource.transaction(async (manager) => {
     const repository = manager.getRepository(PurchaseOrder);
     const purchaseOrder = repository.create({
-      id: randomUUID(),
+      id: "",
       status: "DRAFT",
-      poNumber: null,
       submittedAt: null,
       submittedBy: null,
       approvedAt: null,
@@ -451,6 +436,11 @@ export async function createPurchaseOrder(payload: PurchaseOrderWritePayload): P
     if (payload.step2?.items !== undefined) {
       assertSingleSupplierMatchOrThrow(purchaseOrder.supplierName, payload.step2.items ?? []);
     }
+
+    const now = new Date();
+    const nextSequence = await getNextPurchaseOrderSequence(manager, now);
+    purchaseOrder.id = formatPurchaseOrderNumber(now, nextSequence);
+
     const saved = await repository.save(purchaseOrder);
 
     await replaceLineItemsIfProvided(manager, saved.id, payload);
@@ -535,7 +525,6 @@ export async function updatePurchaseOrderStatus(
     if (status === PURCHASE_ORDER_STATUS.SUBMITTED) {
       existing.submittedAt = changedAt;
       existing.submittedBy = actor;
-      await assignPurchaseOrderNumberIfMissing(manager, existing, changedAt);
     } else if (status === PURCHASE_ORDER_STATUS.APPROVED) {
       existing.approvedAt = changedAt;
       existing.approvedBy = actor;

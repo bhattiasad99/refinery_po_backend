@@ -19,9 +19,6 @@ export class PurchaseOrder {
   @Column({ type: "varchar", length: 40, default: "DRAFT" })
   status!: string;
 
-  @Column({ name: "po_number", type: "varchar", length: 40, unique: true, nullable: true })
-  poNumber!: string | null;
-
   @Column({ name: "submitted_at", type: "timestamptz", nullable: true })
   submittedAt!: Date | null;
 
