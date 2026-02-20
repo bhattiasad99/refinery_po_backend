@@ -1,41 +1,27 @@
-# ---- dev stage ----
-FROM node:22-alpine AS dev
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-COPY tsconfig*.json ./
-COPY nest-cli.json ./
-COPY src ./src
-COPY test ./test
-
-ENV NODE_ENV=development
-EXPOSE 3000
-CMD ["npm", "run", "start:dev"]
-
 # ---- build stage ----
 FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
 COPY src ./src
+
 RUN npm run build
 
 # ---- prod stage ----
 FROM node:22-alpine AS prod
 WORKDIR /app
-
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
 
+# Render supplies PORT; EXPOSE is optional but fine
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+
+CMD ["node", "dist/main.js"]
