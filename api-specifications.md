@@ -6,7 +6,7 @@ Comprehensive guide to the API Gateway endpoints for the Refinery Purchase Order
 
 ## 🚀 Overview
 
-- **Gateway Base URL**: `http://localhost:3000` (or deployed gateway URL)
+- **Gateway Base URL**: `http://localhost:8000` for local (or deployed gateway URL)
 - **Response Format**: All successful responses are wrapped in a standard envelope by the `ResponseInterceptor`:
 
 ```json
