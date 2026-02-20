@@ -93,6 +93,23 @@ describe("app routes", () => {
     });
   });
 
+  it("GET /dashboard returns dashboard stats", async () => {
+    const dashboardStats = {
+      totalPurchases: 1400,
+      totalPurchaseOrders: 5,
+      totalItemsPurchased: 15,
+      purchaseOrdersThisMonth: 3,
+      purchaseOrdersPerDay: [{ date: "2026-02-18", count: 2 }],
+    };
+
+    vi.spyOn(purchaseOrderService, "getDashboardStats").mockResolvedValue(dashboardStats);
+
+    const response = await request(app).get("/dashboard").set("x-internal-key", "test-key");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(dashboardStats);
+  });
+
   afterAll(() => {
     process.env.INTERNAL_SERVICE_KEY = originalKey;
     process.env.PURCHASE_ORDERS_DATABASE_URL = originalDbUrl;

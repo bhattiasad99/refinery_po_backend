@@ -17,6 +17,7 @@ import {
 import {
   canTransitionPurchaseOrderStatus,
   createPurchaseOrder,
+  getDashboardStats,
   PURCHASE_ORDER_STATUS,
   SupplierMismatchConflictError,
   updatePurchaseOrder,
@@ -90,6 +91,16 @@ app.get("/", async (_req, res) => {
   } catch (error) {
     console.error("Failed to list purchase orders", error);
     return res.status(500).json({ message: "Failed to list purchase orders" });
+  }
+});
+
+app.get("/dashboard", async (_req: Request, res: Response) => {
+  try {
+    const stats = await getDashboardStats();
+    return res.status(200).json(stats);
+  } catch (error) {
+    console.error("Failed to fetch dashboard stats", error);
+    return res.status(500).json({ message: "Failed to fetch dashboard stats" });
   }
 });
 

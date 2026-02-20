@@ -87,6 +87,34 @@ const purchaseOrderSchema = {
   required: ["id", "status", "lineItems", "milestones", "createdAt", "updatedAt"],
 } as const;
 
+const dashboardStatsSchema = {
+  type: "object",
+  properties: {
+    totalPurchases: { type: "number" },
+    totalPurchaseOrders: { type: "number" },
+    totalItemsPurchased: { type: "number" },
+    purchaseOrdersThisMonth: { type: "number" },
+    purchaseOrdersPerDay: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          date: { type: "string", format: "date" },
+          count: { type: "number" },
+        },
+        required: ["date", "count"],
+      },
+    },
+  },
+  required: [
+    "totalPurchases",
+    "totalPurchaseOrders",
+    "totalItemsPurchased",
+    "purchaseOrdersThisMonth",
+    "purchaseOrdersPerDay",
+  ],
+} as const;
+
 export const openApiSpec = {
   openapi: "3.0.3",
   info: {
@@ -182,6 +210,26 @@ export const openApiSpec = {
           },
           "500": {
             description: "Failed to create purchase order",
+            content: { "application/json": { schema: errorSchema } },
+          },
+        },
+      },
+    },
+    "/dashboard": {
+      get: {
+        tags: ["Purchase Orders"],
+        summary: "Get dashboard metrics",
+        responses: {
+          "200": {
+            description: "Dashboard stats",
+            content: { "application/json": { schema: dashboardStatsSchema } },
+          },
+          "403": {
+            description: "Forbidden",
+            content: { "application/json": { schema: errorSchema } },
+          },
+          "500": {
+            description: "Failed to fetch dashboard stats",
             content: { "application/json": { schema: errorSchema } },
           },
         },

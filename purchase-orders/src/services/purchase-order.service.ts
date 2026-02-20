@@ -569,3 +569,191 @@ export async function updatePurchaseOrderStatus(
     return full;
   });
 }
+
+export type PurchaseOrdersPerDayPoint = {
+  date: string;
+  count: number;
+};
+
+export type DashboardStats = {
+  totalPurchases: number;
+  totalPurchaseOrders: number;
+  totalItemsPurchased: number;
+  purchaseOrdersThisMonth: number;
+  purchaseOrdersPerDay: PurchaseOrdersPerDayPoint[];
+};
+
+type EventBusEvent = {
+  timestamp?: string;
+  data?: {
+    snapshot?: {
+      createdAt?: string;
+    };
+  };
+};
+
+function formatUtcDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toSafeNumber(value: unknown): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return 0;
+  }
+  return value;
+}
+
+function toMonthStartUtc(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function buildDailySeriesFromDates(dates: Date[]): PurchaseOrdersPerDayPoint[] {
+  if (dates.length === 0) {
+    return [];
+  }
+
+  const byDay = new Map<string, number>();
+  let minTimestamp = Number.POSITIVE_INFINITY;
+  let maxTimestamp = Number.NEGATIVE_INFINITY;
+
+  for (const date of dates) {
+    if (Number.isNaN(date.getTime())) {
+      continue;
+    }
+
+    const day = formatUtcDate(date);
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+
+    const timestamp = date.getTime();
+    minTimestamp = Math.min(minTimestamp, timestamp);
+    maxTimestamp = Math.max(maxTimestamp, timestamp);
+  }
+
+  if (!Number.isFinite(minTimestamp) || !Number.isFinite(maxTimestamp)) {
+    return [];
+  }
+
+  const points: PurchaseOrdersPerDayPoint[] = [];
+  const cursor = new Date(minTimestamp);
+  cursor.setUTCHours(0, 0, 0, 0);
+
+  const end = new Date(maxTimestamp);
+  end.setUTCHours(0, 0, 0, 0);
+
+  while (cursor.getTime() <= end.getTime()) {
+    const day = formatUtcDate(cursor);
+    points.push({
+      date: day,
+      count: byDay.get(day) ?? 0,
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return points;
+}
+
+async function fetchDailySeriesFromEventBus(): Promise<PurchaseOrdersPerDayPoint[] | null> {
+  const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
+  if (!eventBusUrl) {
+    return null;
+  }
+
+  const headers: Record<string, string> = {};
+  const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
+  if (internalServiceKey) {
+    headers["x-internal-key"] = internalServiceKey;
+  }
+
+  const query = new URLSearchParams({
+    source: "purchase-orders",
+    name: "create_purchase_order",
+    from: new Date(0).toISOString(),
+    to: new Date().toISOString(),
+    order: "ASC",
+    limit: "500",
+  });
+
+  try {
+    const response = await fetch(`${eventBusUrl.replace(/\/+$/, "")}/events?${query.toString()}`, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const body = (await response.json()) as unknown;
+    if (!Array.isArray(body)) {
+      return null;
+    }
+
+    // Event bus caps this endpoint to 500 items; avoid returning partial chart data.
+    if (body.length >= 500) {
+      return null;
+    }
+
+    const creationDates: Date[] = [];
+    for (const row of body as EventBusEvent[]) {
+      const createdAt = row.data?.snapshot?.createdAt ?? row.timestamp;
+      if (!createdAt) {
+        continue;
+      }
+      const parsed = new Date(createdAt);
+      if (Number.isNaN(parsed.getTime())) {
+        continue;
+      }
+      creationDates.push(parsed);
+    }
+
+    return buildDailySeriesFromDates(creationDates);
+  } catch (error) {
+    console.error("Failed to fetch dashboard events from event-bus", error);
+    return null;
+  }
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const repository = AppDataSource.getRepository(PurchaseOrder);
+  const rows = await repository.find({
+    relations: ["lineItems"],
+    order: {
+      createdAt: "ASC",
+      lineItems: { sortOrder: "ASC" },
+    },
+  });
+
+  const now = new Date();
+  const monthStart = toMonthStartUtc(now);
+
+  let totalPurchases = 0;
+  let totalItemsPurchased = 0;
+  let purchaseOrdersThisMonth = 0;
+
+  for (const row of rows) {
+    if (row.createdAt >= monthStart) {
+      purchaseOrdersThisMonth += 1;
+    }
+
+    for (const lineItem of row.lineItems ?? []) {
+      const quantity = toSafeNumber(lineItem.quantity);
+      const unitPrice = toSafeNumber(lineItem.unitPrice);
+      totalItemsPurchased += quantity;
+      totalPurchases += quantity * unitPrice;
+    }
+  }
+
+  const eventBusSeries = await fetchDailySeriesFromEventBus();
+  const fallbackSeries = buildDailySeriesFromDates(rows.map((row) => row.createdAt));
+
+  return {
+    totalPurchases,
+    totalPurchaseOrders: rows.length,
+    totalItemsPurchased,
+    purchaseOrdersThisMonth,
+    purchaseOrdersPerDay: eventBusSeries ?? fallbackSeries,
+  };
+}
