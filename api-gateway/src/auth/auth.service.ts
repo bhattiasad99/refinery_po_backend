@@ -46,6 +46,9 @@ type LoginResult = {
 };
 
 type RefreshResult = LoginResult;
+const DEFAULT_USERS_RETRY_ATTEMPTS = 3;
+const DEFAULT_USERS_RETRY_BASE_DELAY_MS = 250;
+const TRANSIENT_UPSTREAM_STATUSES = new Set([429, 502, 503, 504]);
 
 @Injectable()
 export class AuthService {
@@ -227,22 +230,40 @@ export class AuthService {
       headers['x-internal-key'] = internalKey;
     }
 
-    let upstream: Response;
-    try {
-      upstream = await fetch(targetUrl, {
-        method,
-        headers,
-        body: payload === undefined ? undefined : JSON.stringify(payload),
-      });
-    } catch {
-      throw new BadGatewayException({
-        message: "Unable to reach service 'users'",
-        body: null,
-      });
-    }
+    const retryAttempts = this.getUsersRetryAttempts();
+    for (let attempt = 1; attempt <= retryAttempts; attempt += 1) {
+      let upstream: Response;
+      try {
+        upstream = await fetch(targetUrl, {
+          method,
+          headers,
+          body: payload === undefined ? undefined : JSON.stringify(payload),
+        });
+      } catch {
+        if (attempt < retryAttempts) {
+          await this.sleep(this.getRetryDelayMs(attempt));
+          continue;
+        }
+        throw new BadGatewayException({
+          message: "Unable to reach service 'users'",
+          body: null,
+        });
+      }
 
-    const parsedBody = await this.parseResponseBody(upstream);
-    if (!upstream.ok || (expectedStatus && upstream.status !== expectedStatus)) {
+      const parsedBody = await this.parseResponseBody(upstream);
+      const failed = !upstream.ok || (expectedStatus && upstream.status !== expectedStatus);
+      if (!failed) {
+        return parsedBody as T;
+      }
+
+      if (
+        attempt < retryAttempts &&
+        this.isTransientUpstreamStatus(upstream.status)
+      ) {
+        await this.sleep(this.getRetryDelayMs(attempt));
+        continue;
+      }
+
       const responseBody = parsedBody as UpstreamErrorBody | null;
       throw new HttpException(
         {
@@ -253,7 +274,41 @@ export class AuthService {
       );
     }
 
-    return parsedBody as T;
+    throw new BadGatewayException({
+      message: "Unable to reach service 'users'",
+      body: null,
+    });
+  }
+
+  private getUsersRetryAttempts(): number {
+    const raw = process.env.USERS_UPSTREAM_RETRY_ATTEMPTS?.trim();
+    const parsed = raw ? Number(raw) : DEFAULT_USERS_RETRY_ATTEMPTS;
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return DEFAULT_USERS_RETRY_ATTEMPTS;
+    }
+    return Math.floor(parsed);
+  }
+
+  private getUsersRetryBaseDelayMs(): number {
+    const raw = process.env.USERS_UPSTREAM_RETRY_BASE_DELAY_MS?.trim();
+    const parsed = raw ? Number(raw) : DEFAULT_USERS_RETRY_BASE_DELAY_MS;
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return DEFAULT_USERS_RETRY_BASE_DELAY_MS;
+    }
+    return Math.floor(parsed);
+  }
+
+  private getRetryDelayMs(attempt: number): number {
+    const base = this.getUsersRetryBaseDelayMs();
+    return base * attempt;
+  }
+
+  private isTransientUpstreamStatus(status: number): boolean {
+    return TRANSIENT_UPSTREAM_STATUSES.has(status);
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async parseResponseBody(response: Response): Promise<unknown> {
