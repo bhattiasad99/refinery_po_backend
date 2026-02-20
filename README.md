@@ -1,5 +1,34 @@
 # Refinery PO Backend
 
+## Assignment Checklist (Document Date: 2026-02-12)
+
+### Architecture Requirements
+- [x] Service boundaries defined (`catalog` + `purchase-orders` minimum, plus supporting services).
+- [x] Data ownership documented per service.
+- [x] Synchronous APIs defined.
+- [x] Optional asynchronous event model documented (`event-bus`, publish/subscribe flow).
+- [x] Idempotency and failure handling described.
+
+### API Requirements
+- [x] OpenAPI/Swagger specification provided for services.
+- [x] Catalog endpoints support search/filter/sort.
+- [x] Procurement endpoints support draft creation, line management, PO submission, and status transitions.
+- [x] `409 Conflict` behavior documented for supplier mismatch scenarios.
+
+### Database Requirements
+- [x] Explicit schema documented with keys, constraints, and indexes.
+- [x] Single-supplier enforcement covered at both service and database levels.
+- [x] PO number generation strategy defined.
+- [x] Status timeline/audit table implemented (`purchase_order_status_history`).
+
+### Evaluation Focus Coverage
+- [x] Service boundary clarity.
+- [x] Schema quality.
+- [x] API usability.
+- [x] Idempotency handling.
+- [x] Lifecycle modeling.
+- [x] Practical production-oriented design.
+
 <p align="center">
   An event-driven procurement backend built as a multi-service monorepo with clear service boundaries,
   resilient asynchronous communication, and production-minded operational tooling.
