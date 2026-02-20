@@ -6,6 +6,8 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { EventEmitter } from 'events';
 import type { Request } from 'express';
 
 type ServiceConfig = {
@@ -43,6 +45,37 @@ type GlobalBulkStepResult = {
   message: string;
 };
 
+type WarmUpServiceStatus = 'pending' | 'warming' | 'ready' | 'failed' | 'skipped';
+type WarmUpJobStatus = 'running' | 'completed';
+
+type WarmUpServiceResult = {
+  serviceName: string;
+  target: string | null;
+  status: WarmUpServiceStatus;
+  httpStatus: number | null;
+  durationMs: number | null;
+  message: string;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+type WarmUpJob = {
+  id: string;
+  status: WarmUpJobStatus;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  services: WarmUpServiceResult[];
+};
+
+type WarmUpServiceUpdate = {
+  jobId: string;
+  jobStatus: WarmUpJobStatus;
+  service: WarmUpServiceResult;
+  updatedAt: string;
+  completedAt: string | null;
+};
+
 export const SERVICES: ServiceConfig[] = [
   {
     serviceName: 'catalog',
@@ -70,10 +103,107 @@ export const PROXIED_SERVICE_NAMES = SERVICES.map(
   ({ serviceName }) => serviceName,
 );
 
+const WARM_UP_HEALTH_PATH = '/health';
+const WARM_UP_TIMEOUT_MS = 20000;
+const WARM_UP_JOB_RETENTION_MS = 15 * 60 * 1000;
+const WARM_UP_UPDATE_EVENT = 'warm-up-update';
+const WARM_UP_DONE_EVENT = 'warm-up-done';
+
 @Injectable()
 export class AppService {
+  private readonly warmUpJobs = new Map<string, WarmUpJob>();
+  private readonly warmUpEvents = new EventEmitter();
+
   getHealth() {
     return { status: 'ok', service: 'api-gateway' };
+  }
+
+  startWarmUp(): {
+    id: string;
+    status: WarmUpJobStatus;
+    createdAt: string;
+    statusUrl: string;
+    streamUrl: string;
+  } {
+    this.cleanupWarmUpJobs();
+
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const services: WarmUpServiceResult[] = [
+      {
+        serviceName: 'api-gateway',
+        target: '/health',
+        status: 'ready',
+        httpStatus: 200,
+        durationMs: 0,
+        message: 'Gateway is active',
+        startedAt: now,
+        completedAt: now,
+      },
+      ...SERVICES.map((service): WarmUpServiceResult => ({
+        serviceName: service.serviceName,
+        target: this.resolveHealthUrl(service.url),
+        status: service.url ? 'pending' : 'skipped',
+        httpStatus: null,
+        durationMs: null,
+        message: service.url ? 'Queued for warm-up' : 'Service URL is not configured',
+        startedAt: null,
+        completedAt: null,
+      })),
+    ];
+
+    const job: WarmUpJob = {
+      id,
+      status: 'running',
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      services,
+    };
+
+    this.warmUpJobs.set(id, job);
+    void this.runWarmUp(id);
+
+    return {
+      id,
+      status: job.status,
+      createdAt: job.createdAt,
+      statusUrl: `/warm-up/status/${id}`,
+      streamUrl: `/warm-up/stream/${id}`,
+    };
+  }
+
+  getWarmUpJob(jobId: string): WarmUpJob {
+    this.cleanupWarmUpJobs();
+    const job = this.warmUpJobs.get(jobId);
+    if (!job) {
+      throw new NotFoundException(`Warm-up session '${jobId}' was not found`);
+    }
+
+    return {
+      ...job,
+      services: job.services.map((service) => ({ ...service })),
+    };
+  }
+
+  subscribeToWarmUp(
+    jobId: string,
+    onUpdate: (update: WarmUpServiceUpdate) => void,
+    onDone: (job: WarmUpJob) => void,
+  ): () => void {
+    const updateEventName = `${WARM_UP_UPDATE_EVENT}:${jobId}`;
+    const doneEventName = `${WARM_UP_DONE_EVENT}:${jobId}`;
+
+    const updateHandler = (update: WarmUpServiceUpdate) => onUpdate(update);
+    const doneHandler = (job: WarmUpJob) => onDone(job);
+
+    this.warmUpEvents.on(updateEventName, updateHandler);
+    this.warmUpEvents.on(doneEventName, doneHandler);
+
+    return () => {
+      this.warmUpEvents.off(updateEventName, updateHandler);
+      this.warmUpEvents.off(doneEventName, doneHandler);
+    };
   }
 
   receiveEvent(payload: unknown): { accepted: true; eventName: string } {
@@ -196,6 +326,135 @@ export class AppService {
       serviceName,
       restPath: restParts.length > 0 ? `/${restParts.join('/')}` : '/',
     };
+  }
+
+  private async runWarmUp(jobId: string): Promise<void> {
+    const job = this.warmUpJobs.get(jobId);
+    if (!job) {
+      return;
+    }
+
+    const tasks = job.services.map((service) => this.warmUpService(jobId, service.serviceName));
+    await Promise.allSettled(tasks);
+
+    const completedAt = new Date().toISOString();
+    const latest = this.warmUpJobs.get(jobId);
+    if (!latest) {
+      return;
+    }
+
+    latest.status = 'completed';
+    latest.updatedAt = completedAt;
+    latest.completedAt = completedAt;
+    this.warmUpEvents.emit(`${WARM_UP_DONE_EVENT}:${jobId}`, {
+      ...latest,
+      services: latest.services.map((service) => ({ ...service })),
+    } as WarmUpJob);
+  }
+
+  private async warmUpService(jobId: string, serviceName: string): Promise<void> {
+    const job = this.warmUpJobs.get(jobId);
+    if (!job) {
+      return;
+    }
+
+    const service = job.services.find((entry) => entry.serviceName === serviceName);
+    if (!service || service.status === 'skipped' || service.status === 'ready') {
+      return;
+    }
+
+    const startedAt = new Date().toISOString();
+    service.status = 'warming';
+    service.startedAt = startedAt;
+    service.message = 'Warming service';
+    this.emitWarmUpServiceUpdate(jobId, service);
+
+    const target = service.target;
+    if (!target) {
+      service.status = 'skipped';
+      service.message = 'Service URL is not configured';
+      service.completedAt = new Date().toISOString();
+      this.emitWarmUpServiceUpdate(jobId, service);
+      return;
+    }
+
+    const startedTimestamp = Date.now();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), WARM_UP_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(target, {
+        method: 'GET',
+        headers: this.getInternalHeaders(),
+        signal: controller.signal,
+      });
+      const completedAt = new Date().toISOString();
+
+      service.durationMs = Date.now() - startedTimestamp;
+      service.httpStatus = response.status;
+      service.completedAt = completedAt;
+      service.status = response.ok ? 'ready' : 'failed';
+      service.message = response.ok
+        ? 'Warm-up successful'
+        : `Warm-up failed with status ${response.status}`;
+      this.emitWarmUpServiceUpdate(jobId, service);
+    } catch {
+      const completedAt = new Date().toISOString();
+      service.durationMs = Date.now() - startedTimestamp;
+      service.httpStatus = null;
+      service.completedAt = completedAt;
+      service.status = 'failed';
+      service.message = `Warm-up request timed out or failed after ${WARM_UP_TIMEOUT_MS}ms`;
+      this.emitWarmUpServiceUpdate(jobId, service);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private emitWarmUpServiceUpdate(jobId: string, service: WarmUpServiceResult): void {
+    const job = this.warmUpJobs.get(jobId);
+    if (!job) {
+      return;
+    }
+
+    job.updatedAt = new Date().toISOString();
+    this.warmUpEvents.emit(`${WARM_UP_UPDATE_EVENT}:${jobId}`, {
+      jobId,
+      jobStatus: job.status,
+      service: { ...service },
+      updatedAt: job.updatedAt,
+      completedAt: job.completedAt,
+    } as WarmUpServiceUpdate);
+  }
+
+  private resolveHealthUrl(baseUrl: string): string | null {
+    if (!baseUrl) {
+      return null;
+    }
+
+    return `${baseUrl.replace(/\/+$/, '')}${WARM_UP_HEALTH_PATH}`;
+  }
+
+  private getInternalHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {};
+    const internalKey = process.env.INTERNAL_SERVICE_KEY?.trim();
+    if (internalKey) {
+      headers['x-internal-key'] = internalKey;
+    }
+
+    return headers;
+  }
+
+  private cleanupWarmUpJobs(): void {
+    const now = Date.now();
+    for (const [id, job] of this.warmUpJobs.entries()) {
+      const completedAt = job.completedAt ? Date.parse(job.completedAt) : NaN;
+      const createdAt = Date.parse(job.createdAt);
+      const referenceTime = Number.isNaN(completedAt) ? createdAt : completedAt;
+      if (now - referenceTime > WARM_UP_JOB_RETENTION_MS) {
+        this.warmUpJobs.delete(id);
+      }
+    }
   }
 
   private parseGlobalBulkRequest(payload: unknown): GlobalBulkRequest {

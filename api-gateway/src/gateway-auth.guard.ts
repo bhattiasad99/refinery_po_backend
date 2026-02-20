@@ -13,6 +13,7 @@ type AuthenticatedRequest = Request & {
 
 const PUBLIC_PATHS = new Set<string>([
   '/health',
+  '/warm-up',
   '/auth/login',
   '/auth/refresh',
   '/auth/logout',
@@ -22,6 +23,8 @@ const PUBLIC_PATHS = new Set<string>([
 ]);
 
 const PUBLIC_PATH_PREFIXES = [
+  '/warm-up/status/',
+  '/warm-up/stream/',
   '/docs/',
   '/users/docs',
   '/users/openapi.json',
