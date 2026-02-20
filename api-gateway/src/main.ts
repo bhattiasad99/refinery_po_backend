@@ -34,7 +34,8 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document, {
     jsonDocumentUrl: 'openapi.json',
   });
+  const port = Number(process.env.PORT || process.env.API_GATEWAY_PORT || 3000);
 
-  await app.listen(process.env.API_GATEWAY_PORT ?? 3000);
+  await app.listen(port);
 }
 bootstrap();

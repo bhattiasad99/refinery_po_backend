@@ -3,31 +3,31 @@
 ## Assignment Checklist (Document Date: 2026-02-12)
 
 ### Architecture Requirements
-- [x] Service boundaries defined (`catalog` + `purchase-orders` minimum, plus supporting services).
-- [x] Data ownership documented per service.
-- [x] Synchronous APIs defined.
-- [x] Optional asynchronous event model documented (`event-bus`, publish/subscribe flow).
-- [x] Idempotency and failure handling described.
+- [x] Service boundaries defined (`catalog` + `purchase-orders` minimum, plus supporting services). (Where: `## System Architecture` and `## Service Map`; Verify: see separate deployable services and responsibilities.)
+- [x] Data ownership documented per service. (Where: `## Service Map`; Verify: each service row states owned data/responsibilities.)
+- [x] Synchronous APIs defined. (Where: service `src/app.ts` files and `src/openapi.ts` in `catalog`, `purchase-orders`, `users`, `departments`; Verify: inspect Swagger/OpenAPI and HTTP routes.)
+- [x] Optional asynchronous event model documented (`event-bus`, publish/subscribe flow). (Where: `## Event Pipeline (Publish/Subscribe)` + `event-bus` code; Verify: follow `POST /events` publish and subscriber `POST /events` handlers.)
+- [x] Idempotency and failure handling described. (Where: `## 4) Idempotent Write Handling` and event-bus failed delivery notes; Verify: inspect `purchase-orders/src/services/idempotency.service.ts` and `event-bus` failed delivery APIs.)
 
 ### API Requirements
-- [x] OpenAPI/Swagger specification provided for services.
-- [x] Catalog endpoints support search/filter/sort.
-- [x] Procurement endpoints support draft creation, line management, PO submission, and status transitions.
-- [x] `409 Conflict` behavior documented for supplier mismatch scenarios.
+- [x] OpenAPI/Swagger specification provided for services. (Where: `catalog/src/openapi.ts`, `purchase-orders/src/openapi.ts`, `users/src/openapi.ts`, `departments/src/openapi.ts`; Verify: run services and open Swagger docs endpoints.)
+- [x] Catalog endpoints support search/filter/sort. (Where: `catalog/src/app.ts` + schemas/services; Verify: call catalog listing endpoints with query params for search/filter/sort.)
+- [x] Procurement endpoints support draft creation, line management, PO submission, and status transitions. (Where: `purchase-orders/src/app.ts`, `purchase-order.service.ts`; Verify: exercise create draft, line item updates, submit/approve/reject/fulfill routes.)
+- [x] `409 Conflict` behavior documented for supplier mismatch scenarios. (Where: supplier validation in `purchase-orders/src/services/purchase-order.service.ts`; Verify: add line item from different supplier and confirm `409` response.)
 
 ### Database Requirements
-- [x] Explicit schema documented with keys, constraints, and indexes.
-- [x] Single-supplier enforcement covered at both service and database levels.
-- [x] PO number generation strategy defined.
-- [x] Status timeline/audit table implemented (`purchase_order_status_history`).
+- [x] Explicit schema documented with keys, constraints, and indexes. (Where: TypeORM entities in `catalog/src/entities/*`, `purchase-orders/src/entities/*`, `event-bus/src/entities/*`; Verify: inspect entity decorators and SQL scripts in `purchase-orders/sql/*`.)
+- [x] Single-supplier enforcement covered at both service and database levels. (Where: service validation in `purchase-order.service.ts` and DB constraints in `purchase-orders/sql/single-supplier-enforcement-neon.sql`; Verify: attempt mixed-supplier insert via API and direct SQL.)
+- [x] PO number generation strategy defined. (Where: `purchase-orders/src/entities/purchase-order-number-counter.entity.ts` and `purchase-orders/sql/2026-02-19-po-number-and-status-history.sql`; Verify: submit multiple POs and observe unique sequential format.)
+- [x] Status timeline/audit table implemented (`purchase_order_status_history`). (Where: `purchase-orders/src/entities/purchase-order-status-history.entity.ts`; Verify: transition status and query PO detail/history records.)
 
 ### Evaluation Focus Coverage
-- [x] Service boundary clarity.
-- [x] Schema quality.
-- [x] API usability.
-- [x] Idempotency handling.
-- [x] Lifecycle modeling.
-- [x] Practical production-oriented design.
+- [x] Service boundary clarity. (Where: `## System Architecture`, `## Service Map`; Verify: each service has isolated responsibility and DB ownership.)
+- [x] Schema quality. (Where: entity models + SQL migrations/scripts; Verify: review keys, FKs, constraints, and indexes across service schemas.)
+- [x] API usability. (Where: OpenAPI specs and gateway routing behavior; Verify: endpoints are discoverable and consistent via Swagger.)
+- [x] Idempotency handling. (Where: `purchase-orders/src/services/idempotency.service.ts`; Verify: repeat same idempotency key request and compare replay/conflict behavior.)
+- [x] Lifecycle modeling. (Where: `## Purchase Order Lifecycle (Domain Flow)` and status history entity/service; Verify: valid transitions only and historical log entries.)
+- [x] Practical production-oriented design. (Where: gateway + event-bus + retry/failed delivery visibility; Verify: check `event_delivery_status`, failed-event APIs, and async publish path.)
 
 <p align="center">
   An event-driven procurement backend built as a multi-service monorepo with clear service boundaries,
@@ -229,6 +229,19 @@ stateDiagram-v2
 | `purchase-orders` | Core procurement workflow | Draft/edit/submit/approve/reject/fulfill, status history, idempotency, projection syncing |
 | `departments` | Organization reference data | Department CRUD-lite and department creation events |
 | `users` | Identity + sessions | User creation/query/auth verification, refresh session lifecycle, department projection |
+
+---
+
+## Deployed Services (Render + NeonDB)
+
+| Service | Local Port | Access | Type | NeonDB Connection String | Render Service Name | Render Service ID | Render Service URL |
+|---|---:|---|---|---|---|---|---|
+| API Gateway | `8001` | Public | Infra Registered | `postgresql://neondb_owner:npg_Tm6gqfoK3EMG@ep-little-wind-aig02tjj-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__api_gateway` | `srv-d6aul63nv86c739vfg5g` | https://refinery-po-backend-api-gateway.onrender.com |
+| Event Bus | `8000` | Header Key | Infra | `postgresql://neondb_owner:npg_Izgwn3bTHMK1@ep-summer-thunder-aizzelx2-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__event_bus` | `srv-d6auknbnv86c739vf5jg` | https://refinery-po-backend-event-bus.onrender.com |
+| Catalog | `8002` | Header Key | Registered | `postgresql://neondb_owner:npg_IW20YGizTFQL@ep-morning-leaf-aiq04tlu-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__catalog` | `srv-d6aqes14tr6s73eu4k8g` | https://refinery-po-backend.onrender.com |
+| Purchase Orders | `8003` | Header Key | Registered | `postgresql://neondb_owner:npg_mLWq8shjDA9F@ep-shiny-sun-ail03bdz-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__purchase_order` | `srv-d6aui7fgi27c73dbj5vg` | https://refinery-po-backend-purchase-order.onrender.com |
+| Departments | `8004` | Header Key | Registered | `postgresql://neondb_owner:npg_pbiYr6vU1MQd@ep-shiny-base-ainrmcip-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__departments` | `srv-d6b2cmbh46gs73fmkihg` | https://refinery-po-backend-departments.onrender.com |
+| Users | `8005` | Header Key | Registered | `postgresql://neondb_owner:npg_rFCqHYmd17fj@ep-dawn-pine-aiebuvuq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require` | `refinery_po_backend__users` | `srv-d6b4296r433s73aqaj8g` | https://refinery-po-backend-users.onrender.com |
 
 ---
 

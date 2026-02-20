@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
 
-const port = Number(process.env.DEPARTMENTS_PORT || 3000);
+const port = Number(process.env.PORT || process.env.DEPARTMENTS_PORT || 3000);
 const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
 const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
 

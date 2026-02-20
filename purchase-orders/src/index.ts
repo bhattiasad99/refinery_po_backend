@@ -3,7 +3,7 @@ import { AppDataSource } from "./db/data-source";
 import { app } from "./app";
 import { syncProjectionsFromEventBus } from "./services/projection.service";
 
-const port = Number(process.env.PURCHASE_ORDERS_PORT || 3000);
+const port = Number(process.env.PORT || process.env.PURCHASE_ORDERS_PORT || 3000);
 const eventBusUrl = process.env.SERVICE_EVENT_BUS_URL?.trim();
 const internalServiceKey = process.env.INTERNAL_SERVICE_KEY?.trim();
 
