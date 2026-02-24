@@ -25,6 +25,10 @@ Use this structure in every service:
 ## Code hygiene rules
 
 - Keep route handlers thin; move business rules into `services/`.
+- For purchase-order mutations, keep idempotency logic explicit and navigable:
+  - route wrapper in `purchase-orders/src/app.ts`
+  - behavior in `purchase-orders/src/services/idempotency.service.ts`
+  - storage model in `purchase-orders/src/entities/idempotency-record.entity.ts`
 - Add short intent comments only around complex transformations, transactional logic, or async fan-out.
 - Preserve deterministic update semantics for arrays and multi-step payloads (replace-on-write when intended).
 - Keep cross-service event contracts normalized at the boundary (trim strings, validate shape).

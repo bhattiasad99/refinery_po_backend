@@ -17,6 +17,7 @@
 - [API Docs](#api-docs)
 - [Auth Flow (Gateway + Users)](#auth-flow-gateway--users)
 - [Projection Sync and Replay](#projection-sync-and-replay)
+- [Idempotency Control Map](#idempotency-control-map)
 - [Local Monorepo Structure](#local-monorepo-structure)
 - [Development Scripts](#development-scripts)
 - [Engineering Notes](#engineering-notes)
@@ -205,6 +206,27 @@ Behavior:
 - In-progress duplicates are rejected safely.
 
 This prevents duplicate side effects during retries/timeouts.
+
+## Idempotency Control Map
+
+This is the end-to-end path used to prevent duplicate purchase-order mutations:
+
+- Backend request wrapper:
+  - `purchase-orders/src/app.ts` (`runWithIdempotency`, applied to create/update/submit/approve/reject/fulfill routes)
+- Persistence + replay/conflict logic:
+  - `purchase-orders/src/services/idempotency.service.ts`
+- Idempotency storage model and unique constraint:
+  - `purchase-orders/src/entities/idempotency-record.entity.ts`
+- First-party frontend key generation:
+  - `../refinery_po_frontend/src/lib/idempotency/purchase-order-idempotency.ts`
+- Frontend mutation client auto-header wiring:
+  - `../refinery_po_frontend/src/components/use-case/CreatePurchaseOrderFlow/purchase-order-client.ts`
+- Frontend status-action mutations using the same client:
+  - `../refinery_po_frontend/src/components/use-case/SinglePurchaseOrderPageComponent/status-action-buttons.tsx`
+
+Sanity checklist:
+
+- `IDEMPOTENCY_SANITY_CHECKLIST.md`
 
 ## 5) API Gateway / Reverse Proxy Pattern
 
@@ -475,3 +497,4 @@ npm run test:cov
 - Backend conventions: [`BACKEND_STRUCTURE.md`](BACKEND_STRUCTURE.md)
 - Gateway module details: [`api-gateway/README.md`](api-gateway/README.md)
 - Users backfill notes: [`users/backfill.readme.md`](users/backfill.readme.md)
+- Idempotency verification checklist: [`IDEMPOTENCY_SANITY_CHECKLIST.md`](IDEMPOTENCY_SANITY_CHECKLIST.md)

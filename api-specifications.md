@@ -30,7 +30,7 @@ Comprehensive guide to the API Gateway endpoints for the Refinery Purchase Order
 | ------------------ | ------ | -------- | ------------------------------------------------------------------------------- |
 | `Content-Type`     | String | Yes      | Must be `application/json` for POST/PUT requests.                               |
 | `Authorization`    | String | Yes\*    | `Bearer <accessToken>` — required for all authenticated endpoints.              |
-| `Idempotency-Key`  | String | Optional | Unique key to prevent duplicate operations on PO create/update.                 |
+| `Idempotency-Key`  | String | Optional | Unique key to prevent duplicate operations on PO mutations (create/update/status changes). |
 
 \* Not required for public endpoints (see Authentication section).
 
@@ -357,6 +357,10 @@ When `Idempotency-Key` is provided on POST/PUT requests:
 - **Duplicate request** (same key + same payload hash): Returns the stored response (replay).
 - **Same key, different payload**: Returns `409` (`IdempotencyPayloadMismatchError`).
 - **Same key while original is still processing**: Returns `409` (`IdempotencyRequestInProgressError`).
+
+First-party frontend note:
+
+- The bundled UI now auto-generates and sends `Idempotency-Key` for all purchase-order mutating requests.
 
 ---
 
